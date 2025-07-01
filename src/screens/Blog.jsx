@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getAllBlogs } from '../apis/blog';
+import { getAllBlogs, getLatestBlogs, getTrendingBlogs } from '../apis/blog';
 
 const trendingArticles = [
      {
@@ -42,16 +42,27 @@ const latestArticles = [
 ];
 
 export default function Blog() {
-     const navigation = useNavigation();
-     console.log(process.env.EXPO_PUBLIC_API_URL);
+  const navigation = useNavigation();
+  console.log(process.env.EXPO_PUBLIC_API_URL);
+  const [latestBlogs, setLatestBlogs] = useState([])
+  const [trendingBlogs, setTrendingBlogs] = useState([])
 
+  console.log(trendingBlogs)
      // Call data đây nè
-     const fetchData = async () => {
-          const data = await getAllBlogs()
-          console.log(data);
+     const fetchLatestBlogs = async () => {
+          const data = await getLatestBlogs()
+          setLatestBlogs(data.data.data)
      }
 
-     fetchData()
+     const fetchTrendingBlogs = async () => {
+          const data = await getTrendingBlogs()
+          setTrendingBlogs(data.data)
+     }
+
+     useEffect(() => {
+       fetchLatestBlogs()
+       fetchTrendingBlogs()
+     }, [])
 
      return (
           <ScrollView style={styles.container}>
@@ -78,25 +89,25 @@ export default function Blog() {
                {/* Trending Now */}
                <Text style={styles.sectionTitle}>🔥 Trending Now</Text>
                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-                    {trendingArticles.map(article => (
+                    {trendingBlogs.map(blog => (
                          <TouchableOpacity
-                              key={article.id}
+                              key={blog.postId}
                               style={styles.card}
-                              onPress={() => navigation.navigate('BlogDetail', { post: article })}
+                              onPress={() => navigation.navigate('BlogDetail', { blogId: blog.postId })}
                          >
-                              <Image source={{ uri: article.image }} style={styles.cardImage} />
+                              <Image source={{ uri: blog.sourceUrl }} style={styles.cardImage} />
                               <View style={styles.cardContent}>
                                    <View style={styles.tagRow}>
-                                        {article.trending && (
+                                        {blog.trending && (
                                              <Text style={styles.trendingTag}>Trending</Text>
                                         )}
-                                        <Text style={styles.tag}>{article.tag}</Text>
+                                        <Text style={styles.tag}>{blog.tag?.name}</Text>
                                    </View>
-                                   <Text style={styles.cardTitle}>{article.title}</Text>
-                                   <Text style={styles.cardDesc} numberOfLines={2}>{article.desc}</Text>
+                                   <Text style={styles.cardTitle}>{blog.title}</Text>
+                                   <Text style={styles.cardDesc} numberOfLines={2}>{blog.content}</Text>
                                    <View style={styles.cardFooter}>
-                                        <Text style={styles.footerText}>👁 {article.views}</Text>
-                                        <Text style={styles.footerText}>💬 {article.comments}</Text>
+                                        <Text style={styles.footerText}>👁 {blog.viewCount}</Text>
+                                        <Text style={styles.footerText}>👍 {blog.likeCount}</Text>
                                         <Text style={styles.readMore}>Read More</Text>
                                    </View>
                               </View>
@@ -106,22 +117,22 @@ export default function Blog() {
 
                {/* Latest Articles */}
                <Text style={styles.sectionTitle}>📚 Latest Articles</Text>
-               {latestArticles.map(article => (
+               {latestBlogs.map( blog => (
                     <TouchableOpacity
-                         key={article.id}
+                         key={blog.postId}
                          style={styles.cardVertical}
-                         onPress={() => navigation.navigate('BlogDetail', { post: article })}
+                         onPress={() => navigation.navigate('BlogDetail', { blogId: blog.postId })}
                     >
-                         <Image source={{ uri: article.image }} style={styles.cardImageVertical} />
+                         <Image source={{ uri: blog.sourceUrl }} style={styles.cardImageVertical} />
                          <View style={styles.cardContentVertical}>
                               <View style={styles.tagRow}>
-                                   <Text style={styles.tag}>{article.tag}</Text>
+                                   <Text style={styles.tag}>{blog.tag.name}</Text>
                               </View>
-                              <Text style={styles.cardTitle}>{article.title}</Text>
-                              <Text style={styles.cardDesc} numberOfLines={2}>{article.desc}</Text>
+                              <Text style={styles.cardTitle}>{blog.title}</Text>
+                              <Text style={styles.cardDesc} numberOfLines={2}>{blog.content}</Text>
                               <View style={styles.cardFooter}>
-                                   <Text style={styles.footerText}>👁 {article.views}</Text>
-                                   <Text style={styles.footerText}>💬 {article.comments}</Text>
+                                   <Text style={styles.footerText}>👁 {blog.viewCount}</Text>
+                                   <Text style={styles.footerText}>👍 {blog.likeCount}</Text>
                                    <Text style={styles.readMore}>Read More</Text>
                               </View>
                          </View>
@@ -153,6 +164,6 @@ const styles = StyleSheet.create({
      footerText: { color: '#888', fontSize: 12 },
      readMore: { color: '#f59e42', fontWeight: 'bold', fontSize: 12 },
      cardVertical: { backgroundColor: '#fff', borderRadius: 12, marginHorizontal: 16, marginTop: 12, elevation: 1, flexDirection: 'row', overflow: 'hidden' },
-     cardImageVertical: { width: 90, height: 90 },
+     cardImageVertical: { width: 90, height: '100%' },
      cardContentVertical: { flex: 1, padding: 10, justifyContent: 'center' },
 });
