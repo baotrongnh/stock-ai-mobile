@@ -43,11 +43,9 @@ const latestArticles = [
 
 export default function Blog() {
   const navigation = useNavigation();
-  console.log(process.env.EXPO_PUBLIC_API_URL);
   const [latestBlogs, setLatestBlogs] = useState([])
   const [trendingBlogs, setTrendingBlogs] = useState([])
 
-  console.log(trendingBlogs)
      // Call data đây nè
      const fetchLatestBlogs = async () => {
           const data = await getLatestBlogs()
@@ -89,11 +87,11 @@ export default function Blog() {
                {/* Trending Now */}
                <Text style={styles.sectionTitle}>🔥 Trending Now</Text>
                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-                    {trendingBlogs.map(blog => (
+                    {trendingBlogs?.map(blog => (
                          <TouchableOpacity
                               key={blog.postId}
                               style={styles.card}
-                              onPress={() => navigation.navigate('BlogDetail', { blogId: blog.postId })}
+                              onPress={() => navigation.navigate('BlogDetail', { blogId: blog?.postId })}
                          >
                               <Image source={{ uri: blog.sourceUrl }} style={styles.cardImage} />
                               <View style={styles.cardContent}>

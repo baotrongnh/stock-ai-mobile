@@ -1,3 +1,4 @@
+import { ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -5,62 +6,77 @@ import { getBlogDetail } from '../apis/blog';
 import { formatText } from '../utils/blog';
 
 export default function BlogDetail({ route }) {
-  const navigation = useNavigation();
-  const { blogId } = route.params;
+  const [isLoading, setIsLoading] = useState(false);
+  const navigation = useNavigation()
+  const { blogId } = route.params
   const [blog, setBlog] = useState(null)
-  console.log(blogId)
-  console.log(blog)
+  // console.log(blog)
+
   const fetchBlogDetail = async () => {
+    setIsLoading(true)
     const data = await getBlogDetail(blogId)
-    setBlog(data.result)
+    console.log(data);
+    if (!data.error) {
+      if (data.result) {
+        setBlog(data.result)
+      } else setBlog(data.data)
+    }
+    setIsLoading(false)
   }
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchBlogDetail()
   }, [blogId])
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Back</Text>
-        </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.actionBtn}><Text style={styles.actionText}>Share</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}><Text style={styles.actionText}>Save</Text></TouchableOpacity>
+      {isLoading || !blog ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ef4444" />
         </View>
-      </View>
+      ) : (
+        <>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backBtn}>← Back</Text>
+            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.actionBtn}><Text style={styles.actionText}>Share</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn}><Text style={styles.actionText}>Save</Text></TouchableOpacity>
+            </View>
+          </View>
 
-      {/* Tags */}
-      <View style={styles.tagsRow}>
-        <Text style={styles.tagMain}>{blog?.tag?.name}</Text>
-        {/* Add more tags if needed */}
-      </View>
+          {/* Tags */}
+          <View style={styles.tagsRow}>
+            <Text style={styles.tagMain}>{blog?.tag?.name}</Text>
+          </View>
 
-      {/* Title */}
-      <Text style={styles.title}>{blog?.title}</Text>
+          {/* Title */}
+          <Text style={styles.title}>{blog?.title}</Text>
 
-      {/* Meta info */}
-      <View style={styles.metaRow}>
-        <Text style={styles.metaText}>👤 Đầu Tư Chứng Khoán</Text>
-        <Text style={styles.metaDot}>·</Text>
-        <Text style={styles.metaText}>24/06/2025</Text>
-        <Text style={styles.metaDot}>·</Text>
-        <Text style={styles.metaText}>5 min read</Text>
-        <Text style={styles.metaDot}>·</Text>
-        <Text style={styles.metaText}>👁 {blog?.viewCount} views</Text>
-      </View>
+          {/* Meta info */}
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>👤 Đầu Tư Chứng Khoán</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.metaText}>24/06/2025</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.metaText}>5 min read</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.metaText}>👁 {blog?.viewCount} views</Text>
+          </View>
 
-      {/* Image */}
-      <Image source={{ uri: blog?.sourceUrl }} style={styles.image} />
+          {/* Image */}
+          <Image source={{ uri: blog?.sourceUrl }} style={styles.image} />
 
-      {/* Content */}
-      <View style={styles.content}>
-        <Text style={styles.contentText}>
-          {formatText(blog?.content)}
-        </Text>
-      </View>
+          {/* Content */}
+          <View style={styles.content}>
+            <Text style={styles.contentText}>
+              {formatText(blog?.content)}
+            </Text>
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -81,4 +97,10 @@ const styles = StyleSheet.create({
   image: { width: '92%', height: 180, borderRadius: 12, alignSelf: 'center', marginVertical: 12, backgroundColor: '#eee' },
   content: { paddingHorizontal: 16, paddingBottom: 32 },
   contentText: { color: '#222', fontSize: 15, lineHeight: 22 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 400,
+  },
 });
