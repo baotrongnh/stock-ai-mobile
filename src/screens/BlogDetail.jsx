@@ -55,16 +55,16 @@ export default function BlogDetail({ route }) {
           {/* Title */}
           <Text style={styles.title}>{blog?.title}</Text>
 
-          {/* Meta info */}
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>👤 Đầu Tư Chứng Khoán</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaText}>24/06/2025</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaText}>5 min read</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaText}>👁 {blog?.viewCount} views</Text>
-          </View>
+      {/* Meta info */}
+      <View style={styles.metaRow}>
+        <Text style={styles.metaText}>👤 {blog?.expert?.fullName}</Text>
+        <Text style={styles.metaDot}>·</Text>
+        <Text style={styles.metaText}>{blog?.createdAt}</Text>
+        <Text style={styles.metaDot}>·</Text>
+        <Text style={styles.metaText}>5 min read</Text>
+        <Text style={styles.metaDot}>·</Text>
+        <Text style={styles.metaText}>👁 {blog?.viewCount} views</Text>
+      </View>
 
           {/* Image */}
           <Image source={{ uri: blog?.sourceUrl }} style={styles.image} />

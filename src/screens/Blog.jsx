@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getAllBlogs, getLatestBlogs, getTrendingBlogs } from '../apis/blog';
 
@@ -62,7 +62,8 @@ export default function Blog() {
        fetchTrendingBlogs()
      }, [])
 
-     return (
+  return (
+       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
           <ScrollView style={styles.container}>
                {/* Header */}
                <View style={styles.header}>
@@ -99,7 +100,7 @@ export default function Blog() {
                                         {blog.trending && (
                                              <Text style={styles.trendingTag}>Trending</Text>
                                         )}
-                                        <Text style={styles.tag}>{blog.tag?.name}</Text>
+                                        <Text style={styles.tag}>{blog?.tag?.name}</Text>
                                    </View>
                                    <Text style={styles.cardTitle}>{blog.title}</Text>
                                    <Text style={styles.cardDesc} numberOfLines={2}>{blog.content}</Text>
@@ -138,6 +139,7 @@ export default function Blog() {
                ))}
                <View style={{ height: 32 }} />
           </ScrollView>
+        </SafeAreaView>
      );
 }
 
