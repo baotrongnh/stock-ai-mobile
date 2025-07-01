@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { getAllBlogs } from '../apis/blog';
 
 const trendingArticles = [
      {
@@ -42,6 +43,15 @@ const latestArticles = [
 
 export default function Blog() {
      const navigation = useNavigation();
+     console.log(process.env.EXPO_PUBLIC_API_URL);
+
+     // Call data đây nè
+     const fetchData = async () => {
+          const data = await getAllBlogs()
+          console.log(data);
+     }
+
+     fetchData()
 
      return (
           <ScrollView style={styles.container}>
