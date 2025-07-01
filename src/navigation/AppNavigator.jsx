@@ -1,8 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native'
-import { RootStack } from './index'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import BlogDetail from '../screens/BlogDetail'
-import { Text } from 'react-native'
+import { RootStack } from './index'
 
 const Stack = createNativeStackNavigator()
 
