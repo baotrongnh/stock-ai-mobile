@@ -1,7 +1,8 @@
 import axiosClient from "./axiosClient"
 
 const login = async (email, password) => {
-     try {
+  try {
+       console.log(process.env.EXPO_PUBLIC_API_URL)
           return await axiosClient.post('/auth/login', {
                email,
                password

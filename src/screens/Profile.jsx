@@ -1,33 +1,52 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, SafeAreaView } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProfile } from '../apis/profile';
 
-const initialProfile = {
-     firstName: 'John',
-     lastName: 'Investor',
-     occupation: 'Financial Analyst',
-     email: 'john.investor@email.com',
-     phone: '+1 (555) 123-4567',
-     location: 'New York, NY',
-     dob: '5/15/1990',
-     bio: 'Passionate about financial markets and long-term investing. Focused on building a diversified portfolio with a mix of growth and value stocks.',
-     portfolioValue: 125430,
-     joined: 'January 2023',
-     active: true,
-};
+// const initialProfile = {
+//      firstName: 'John',
+//      lastName: 'Investor',
+//      occupation: 'Financial Analyst',
+//      email: 'john.investor@email.com',
+//      phone: '+1 (555) 123-4567',
+//      location: 'New York, NY',
+//      dob: '5/15/1990',
+//      bio: 'Passionate about financial markets and long-term investing. Focused on building a diversified portfolio with a mix of growth and value stocks.',
+//      portfolioValue: 125430,
+//      joined: 'January 2023',
+//      active: true,
+// };
 
 export default function Profile() {
-     const [profile, setProfile] = useState(initialProfile);
+     const [profile, setProfile] = useState({});
      const [tab, setTab] = useState('personal');
      const [edit, setEdit] = useState(false);
      const [editProfile, setEditProfile] = useState(profile);
 
+     console.log(profile)
+     const logToken = async () => {
+          const token = await AsyncStorage.getItem('token');
+          console.log(token);
+     }
      const handleSave = () => {
           setProfile(editProfile);
           setEdit(false);
-     };
+    };
 
-     return (
+    const fetchProfile = async () => {
+      const data = await getProfile()
+      console.log(data)
+          setProfile(data.data)
+     }
+
+     useEffect(() => {
+       fetchProfile()
+       logToken()
+     }, [])
+
+  return (
+       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
           <ScrollView style={styles.container}>
                {/* Header */}
                <View style={styles.headerRow}>
@@ -246,6 +265,7 @@ export default function Profile() {
 
                <View style={{ height: 32 }} />
           </ScrollView>
+        </SafeAreaView>
      );
 }
 

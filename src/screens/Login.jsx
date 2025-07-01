@@ -13,12 +13,13 @@ export default function Login({ navigation }) {
      const handleLogin = async () => {
           setLoading(true);
           try {
-               const data = await login(email, password);
+            const data = await login(email, password);
                if (data.access_token) {
-                    await AsyncStorage.setItem('access_token', data.access_token)
+                    await AsyncStorage.setItem('token', data.access_token)
 
-                    const token = await AsyncStorage.getItem('access_token')
+                    const token = await AsyncStorage.getItem('token')
                     Alert.alert('Token đã lưu:', token || 'Không có token')
+                    navigation.navigate('Root')
                }
           } catch (e) {
                Alert.alert('Lỗi', 'Đăng nhập thất bại')
