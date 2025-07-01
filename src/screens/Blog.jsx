@@ -101,7 +101,7 @@ export default function Blog() {
                                         {blog.trending && (
                                              <Text style={styles.trendingTag}>Trending</Text>
                                         )}
-                                        <Text style={styles.tag}>{blog.tag?.name}</Text>
+                                        <Text style={styles.tag}>{blog?.tag?.name}</Text>
                                    </View>
                                    <Text style={styles.cardTitle}>{blog.title}</Text>
                                    <Text style={styles.cardDesc} numberOfLines={2}>{blog.content}</Text>

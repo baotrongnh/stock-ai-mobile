@@ -43,7 +43,7 @@ export default function BlogDetail({ route }) {
 
       {/* Meta info */}
       <View style={styles.metaRow}>
-        <Text style={styles.metaText}>👤 Đầu Tư Chứng Khoán</Text>
+        <Text style={styles.metaText}>👤 {blog?.expert?.fullName}</Text>
         <Text style={styles.metaDot}>·</Text>
         <Text style={styles.metaText}>24/06/2025</Text>
         <Text style={styles.metaDot}>·</Text>
