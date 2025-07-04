@@ -6,7 +6,7 @@
   export default function HomeScreen() {
     const [token, setToken] = useState(null)
     useEffect(() => {
-        const fetchToken = async () => {
+      const fetchToken = async () => {
         if (!token) { 
           try {
             const pushToken = await registerForPushNotificationsAsync();
