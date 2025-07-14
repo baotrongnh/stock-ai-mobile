@@ -2,11 +2,19 @@ import axiosClient from "./axiosClient"
 
 const getProfile = async () => {
   try {
-    console.log(process.env.EXPO_PUBLIC_API_URL, 'auth/me')
+    console.log(process.env.EXPO_PUBLIC_API_URL,'auth/me')
     return await axiosClient.get('auth/me')
   } catch (error) {
     console.log(error)
   }
 }
 
-export { getProfile }
+const updateProfile = async (data) => {
+  try {
+    return await axiosClient.put('auth/me', data)
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+export { getProfile, updateProfile }

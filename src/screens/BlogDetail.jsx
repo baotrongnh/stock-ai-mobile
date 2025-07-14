@@ -64,7 +64,15 @@ export default function BlogDetail({ route }) {
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>👤 {blog?.expert?.fullName}</Text>
               <Text style={styles.metaDot}>·</Text>
-              <Text style={styles.metaText}>{blog?.createdAt}</Text>
+              <Text style={styles.metaText}>
+                {blog?.createdAt
+                  ? (() => {
+                      const d = new Date(blog.createdAt);
+                      const pad = (n) => n.toString().padStart(2, "0");
+                      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    })()
+                  : ""}
+              </Text>
               <Text style={styles.metaDot}>·</Text>
               <Text style={styles.metaText}>5 min read</Text>
               <Text style={styles.metaDot}>·</Text>

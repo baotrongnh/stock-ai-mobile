@@ -1,135 +1,106 @@
-import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from "react-native";
 
-const quickPrompts = [
-  { label: 'Analyze TSLA', color: '#e0e7ff', icon: <FontAwesome5 name="chart-line" size={16} color="#2563eb" /> },
-  { label: 'Market Summary', color: '#fef9c3', icon: <Ionicons name="stats-chart" size={16} color="#eab308" /> },
-  { label: 'Portfolio Review', color: '#fee2e2', icon: <MaterialIcons name="pie-chart" size={16} color="#dc2626" /> },
-];
+const FAKE_BOT_RESPONSES = ["I'm StockGPT, your AI financial assistant. How can I help you today?", "Here's a quick summary of the market: S&P 500 is up 0.5%, tech stocks are leading.", "TSLA is showing strong momentum, but keep an eye on volatility.", "The P/E ratio is a valuation metric. A lower P/E can mean undervalued, but context matters.", "For portfolio review, diversify across sectors and rebalance quarterly.", "Let me know if you want a stock analysis or market news!"];
 
-const suggestionCards = [
-  {
-    label: 'Analyze AAPL stock performance',
-    icon: <FontAwesome5 name="chart-bar" size={22} color="#2563eb" />,
-    color: '#e0e7ff',
-  },
-  {
-    label: 'What are the top tech stocks to watch?',
-    icon: <Ionicons name="md-bulb" size={22} color="#059669" />,
-    color: '#bbf7d0',
-  },
-  {
-    label: 'Explain P/E ratio and its importance',
-    icon: <MaterialIcons name="functions" size={22} color="#a21caf" />,
-    color: '#f3e8ff',
-  },
-  {
-    label: 'Market outlook for Q4 2024',
-    icon: <Ionicons name="earth" size={22} color="#ea580c" />,
-    color: '#fed7aa',
-  },
-];
+const SUGGESTIONS = ["Phân tích cổ phiếu AAPL", "Tóm tắt thị trường hôm nay", "Top cổ phiếu công nghệ nên theo dõi", "Giải thích chỉ số P/E", "Dự báo thị trường quý tới", "Đánh giá danh mục đầu tư"];
 
 export default function Chat() {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([{ role: "bot", text: "Xin chào! Tôi là StockGPT, trợ lý tài chính AI của bạn. Hãy hỏi tôi bất cứ điều gì về cổ phiếu hoặc thị trường." }]);
+  const scrollViewRef = useRef();
+
+  const handleSend = (customText) => {
+    const text = typeof customText === "string" ? customText : input.trim();
+    if (!text) return;
+    const userMsg = { role: "user", text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    // Fake bot response
+    setTimeout(() => {
+      const botMsg = {
+        role: "bot",
+        text: FAKE_BOT_RESPONSES[Math.floor(Math.random() * FAKE_BOT_RESPONSES.length)],
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    }, 900);
+  };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f9fafb' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#f9fafb" }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>
-            <Text style={{ color: '#ef4444', fontWeight: 'bold' }}>AI Stock Analysis</Text>
+            <Text style={{ color: "#ef4444", fontWeight: "bold" }}>StockGPT</Text>
           </Text>
-          <Text style={styles.subtitle}>Get intelligent insights powered by advanced AI</Text>
-          <View style={styles.statusRow}>
-            <View style={styles.statusBadge}>
-              <View style={styles.dotLive} />
-              <Text style={styles.statusText}>Live Market</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: '#fee2e2', marginLeft: 8 }]}>
-              <Ionicons name="flash" size={12} color="#ef4444" />
-              <Text style={[styles.statusText, { color: '#ef4444', marginLeft: 2 }]}>AI Powered</Text>
-            </View>
-          </View>
+          <Text style={styles.subtitle}>AI tài chính - hỏi đáp cổ phiếu, thị trường</Text>
         </View>
 
-        {/* Main Icon */}
-        <View style={{ alignItems: 'center', marginTop: 24 }}>
-          <View style={styles.mainIcon}>
-            <MaterialIcons name="insert-chart" size={40} color="#fff" />
-          </View>
+        {/* Suggestions */}
+        <View style={styles.suggestionBarWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionBar} contentContainerStyle={{ alignItems: "center", paddingHorizontal: 10, height: 40 }}>
+            {SUGGESTIONS.map((s, idx) => (
+              <TouchableOpacity key={idx} style={styles.suggestionBtn} onPress={() => setInput(input ? input.trim() + " " + s : s)}>
+                <Text style={styles.suggestionText}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
-        {/* Welcome */}
-        <Text style={styles.welcome}>
-          Welcome to <Text style={{ color: '#ef4444', fontWeight: 'bold' }}>StockGPT!</Text>
-        </Text>
-        <Text style={styles.desc}>
-          Your AI-powered financial advisor. Ask me anything about stocks, markets, or investment strategies.
-        </Text>
-
-        {/* Suggestion Cards */}
-        <View style={styles.suggestionGrid}>
-          {suggestionCards.map((card, idx) => (
-            <TouchableOpacity key={idx} style={[styles.suggestionCard, { backgroundColor: card.color }]}>
-              <View style={styles.suggestionIcon}>{card.icon}</View>
-              <Text style={styles.suggestionLabel}>{card.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color="#888" style={{ position: 'absolute', right: 12, top: 18 }} />
-            </TouchableOpacity>
+        {/* Chat messages */}
+        <ScrollView style={styles.chatContainer} contentContainerStyle={{ paddingVertical: 16 }} ref={scrollViewRef} onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}>
+          {messages.map((msg, idx) => (
+            <View key={idx} style={[styles.messageRow, msg.role === "user" ? styles.userRow : styles.botRow]}>
+              {msg.role === "bot" && (
+                <View style={styles.avatarBot}>
+                  <MaterialIcons name="smart-toy" size={22} color="#ef4444" />
+                </View>
+              )}
+              <View style={[styles.bubble, msg.role === "user" ? styles.userBubble : styles.botBubble]}>
+                <Text style={styles.bubbleText}>{msg.text}</Text>
+              </View>
+              {msg.role === "user" && (
+                <View style={styles.avatarUser}>
+                  <Ionicons name="person-circle" size={22} color="#888" />
+                </View>
+              )}
+            </View>
           ))}
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Chat Input */}
-      <View style={styles.inputBar}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ask about stocks, market analysis, or investment strategies…"
-          value={input}
-          onChangeText={setInput}
-        />
-        <TouchableOpacity style={styles.sendBtn}>
-          <Ionicons name="send" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Prompts */}
-      <View style={styles.quickPromptRow}>
-        {quickPrompts.map((prompt, idx) => (
-          <TouchableOpacity key={idx} style={[styles.quickPrompt, { backgroundColor: prompt.color }]}>
-            {prompt.icon}
-            <Text style={styles.quickPromptText}>{prompt.label}</Text>
+        {/* Chat Input */}
+        <View style={styles.inputBar}>
+          <TextInput style={styles.input} placeholder="Nhập câu hỏi về cổ phiếu, thị trường…" value={input} onChangeText={setInput} onSubmitEditing={handleSend} returnKeyType="send" />
+          <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+            <Ionicons name="send" size={22} color="#fff" />
           </TouchableOpacity>
-        ))}
-      </View>
-    </KeyboardAvoidingView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingTop: 36, paddingBottom: 10, paddingHorizontal: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  logo: { fontSize: 22, fontWeight: 'bold', marginBottom: 2 },
-  subtitle: { color: '#666', fontSize: 13, marginBottom: 6 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#dcfce7', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
-  dotLive: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e', marginRight: 4 },
-  statusText: { color: '#16a34a', fontSize: 12, fontWeight: 'bold' },
-  mainIcon: { backgroundColor: '#ef4444', borderRadius: 20, padding: 18, marginBottom: 10 },
-  welcome: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginTop: 12 },
-  desc: { color: '#444', fontSize: 14, textAlign: 'center', marginHorizontal: 24, marginTop: 4, marginBottom: 18 },
-  suggestionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginHorizontal: 8 },
-  suggestionCard: { width: '46%', margin: '2%', borderRadius: 14, padding: 16, minHeight: 80, justifyContent: 'center', position: 'relative' },
-  suggestionIcon: { marginBottom: 8 },
-  suggestionLabel: { fontWeight: 'bold', fontSize: 14, color: '#222' },
-  inputBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderColor: '#f3f4f6' },
-  input: { flex: 1, fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: '#f3f4f6', borderRadius: 8, marginRight: 8 },
-  sendBtn: { backgroundColor: '#fb7185', borderRadius: 8, padding: 10 },
-  quickPromptRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 10, backgroundColor: '#fff' },
-  quickPrompt: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, marginTop: 8 },
-  quickPromptText: { marginLeft: 5, fontSize: 13, fontWeight: 'bold', color: '#222' },
+  header: { paddingTop: 36, paddingBottom: 10, paddingHorizontal: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderColor: "#f3f4f6" },
+  logo: { fontSize: 22, fontWeight: "bold", marginBottom: 2 },
+  subtitle: { color: "#666", fontSize: 13, marginBottom: 6 },
+  suggestionBarWrapper: { backgroundColor: "#fff", borderBottomWidth: 1, borderColor: "#f3f4f6", height: 48, justifyContent: "center" },
+  suggestionBar: { flexGrow: 0, height: 40 },
+  suggestionBtn: { backgroundColor: "#f3f4f6", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, justifyContent: "center", height: 32 },
+  suggestionText: { color: "#222", fontSize: 13, fontWeight: "bold" },
+  chatContainer: { flex: 1, backgroundColor: "#f9fafb", paddingHorizontal: 10 },
+  messageRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 10, paddingHorizontal: 4 },
+  userRow: { justifyContent: "flex-end" },
+  botRow: { justifyContent: "flex-start" },
+  bubble: { maxWidth: "75%", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  userBubble: { backgroundColor: "#ef4444", marginLeft: 40 },
+  botBubble: { backgroundColor: "#f3f4f6", marginRight: 40 },
+  bubbleText: { color: "#222", fontSize: 15 },
+  avatarBot: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#fde68a", alignItems: "center", justifyContent: "center", marginRight: 8 },
+  avatarUser: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#e0e7ff", alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  inputBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderColor: "#f3f4f6" },
+  input: { flex: 1, fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: "#f3f4f6", borderRadius: 8, marginRight: 8 },
+  sendBtn: { backgroundColor: "#ef4444", borderRadius: 8, padding: 10 },
 });
