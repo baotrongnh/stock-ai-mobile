@@ -1,6 +1,7 @@
-import React from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, SafeAreaView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, SafeAreaView, Pressable } from "react-native";
 import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 const featured = [
   {
@@ -72,6 +73,8 @@ const latest = [
 ];
 
 export default function Podcast() {
+  const [playingId, setPlayingId] = useState(null);
+  const navigation = useNavigation();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <ScrollView style={styles.container}>
@@ -92,57 +95,22 @@ export default function Podcast() {
           </TouchableOpacity>
         </View>
 
-        {/* Featured Content */}
-        <Text style={styles.sectionTitle}>Featured Content</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-          {featured.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.featuredCard}>
-              <Image source={{ uri: item.image }} style={styles.featuredImage} />
-              {item.featured && (
-                <View style={styles.featuredBadge}>
-                  <Text style={styles.featuredBadgeText}>Featured</Text>
-                </View>
-              )}
-              <View style={styles.featuredContent}>
-                <View style={styles.tagRow}>
-                  <Text style={styles.tag}>{item.tag}</Text>
-                  <Text style={styles.typeTag}>{item.type === "video" ? "🎬 video" : "🎧 podcast"}</Text>
-                </View>
-                <Text style={styles.featuredTitle}>{item.title}</Text>
-                <Text style={styles.featuredDesc} numberOfLines={2}>
-                  {item.desc}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>👤 {item.author}</Text>
-                  <Text style={styles.metaDot}>·</Text>
-                  <Text style={styles.metaText}>👁 {item.views}</Text>
-                  <Text style={styles.metaDot}>·</Text>
-                  <Text style={styles.metaText}>{item.date}</Text>
-                  <Text style={styles.metaDot}>·</Text>
-                  <Text style={styles.metaText}>
-                    <Ionicons name="time" size={13} /> {item.time}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Latest Content */}
-        <Text style={styles.sectionTitle}>Latest Content</Text>
-        <View style={styles.latestRow}>
+        {/* Latest Podcasts - Stack view */}
+        <Text style={styles.sectionTitle}>Latest Podcasts</Text>
+        <View style={styles.podcastStack}>
           {latest.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.latestCard}>
-              <Image source={{ uri: item.image }} style={styles.latestImage} />
-              <View style={styles.latestFooter}>
-                <View style={styles.latestTagRow}>
-                  <Text style={[styles.latestTag, { backgroundColor: item.type === "podcast" ? "#f3e8ff" : "#e0e7ff", color: item.type === "podcast" ? "#a21caf" : "#2563eb" }]}>{item.type === "podcast" ? "🎧 podcast" : "🎬 video"}</Text>
-                </View>
-                <Text style={styles.latestTime}>
+            <Pressable key={item.id} style={styles.podcastCard} onPress={() => navigation.navigate("PodcastDetail", { podcast: item })}>
+              <Image source={{ uri: item.image }} style={styles.podcastImage} />
+              <View style={styles.podcastInfo}>
+                <Text style={styles.podcastTitle}>{item.title}</Text>
+                <Text style={styles.podcastTime}>
                   <Ionicons name="time" size={13} /> {item.time}
                 </Text>
               </View>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.playBtn} onPress={() => setPlayingId(playingId === item.id ? null : item.id)}>
+                <Ionicons name={playingId === item.id ? "pause-circle" : "play-circle"} size={38} color="#ef4444" />
+              </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
         <View style={{ height: 32 }} />
@@ -174,11 +142,22 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 2 },
   metaText: { color: "#888", fontSize: 12 },
   metaDot: { color: "#bbb", marginHorizontal: 4 },
-  latestRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", marginHorizontal: 8, marginTop: 8 },
-  latestCard: { width: 160, backgroundColor: "#fff", borderRadius: 12, margin: 8, elevation: 1, overflow: "hidden" },
-  latestImage: { width: "100%", height: 80, backgroundColor: "#222" },
-  latestFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 6 },
-  latestTagRow: { flexDirection: "row", alignItems: "center" },
-  latestTag: { fontSize: 11, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, fontWeight: "bold", marginRight: 4 },
-  latestTime: { color: "#888", fontSize: 12 },
+  podcastStack: { marginTop: 8, marginHorizontal: 8 },
+  podcastCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    marginBottom: 14,
+    padding: 10,
+    elevation: 1,
+    shadowColor: "#ef4444",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+  },
+  podcastImage: { width: 70, height: 70, borderRadius: 10, backgroundColor: "#eee" },
+  podcastInfo: { flex: 1, marginLeft: 14, justifyContent: "center" },
+  podcastTitle: { fontWeight: "bold", fontSize: 15, color: "#222", marginBottom: 4 },
+  podcastTime: { color: "#888", fontSize: 13 },
+  playBtn: { marginLeft: 8, alignItems: "center", justifyContent: "center" },
 });
