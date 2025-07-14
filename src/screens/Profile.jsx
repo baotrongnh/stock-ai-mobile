@@ -30,7 +30,8 @@ export default function Profile() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateProfile({ fullName: editName });
+      console.log(editName, profile, "editName, profile.id");
+      await updateProfile(editName, profile?.userId);
       await fetchProfile();
       setEdit(false);
     } catch (e) {
@@ -50,7 +51,7 @@ export default function Profile() {
               <Ionicons name="create-outline" size={20} color="#ef4444" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.editIconBtn} onPress={handleSave} disabled={loading}>
+            <TouchableOpacity style={styles.editIconBtn} onPress={() => handleSave()} disabled={loading}>
               <Ionicons name="checkmark-circle" size={22} color={loading ? "#bbb" : "#22c55e"} />
             </TouchableOpacity>
           )}

@@ -9,9 +9,10 @@ const getProfile = async () => {
   }
 }
 
-const updateProfile = async (data) => {
+const updateProfile = async (fullName, userId) => {
   try {
-    return await axiosClient.put('auth/me', data)
+    console.log(fullName, userId, 'fullName, userId')
+    return await axiosClient.patch(`users/${userId}`, { fullName })
   } catch (error) {
     console.log(error)
   }
