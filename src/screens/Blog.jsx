@@ -3,57 +3,20 @@ import { View, Text, StyleSheet, TextInput, ScrollView, Image, TouchableOpacity,
 import { useNavigation } from '@react-navigation/native';
 import { getAllBlogs, getLatestBlogs, getTrendingBlogs } from '../apis/blog';
 
-const trendingArticles = [
-     {
-          id: 1,
-          tag: 'Investment',
-          title: '🚀 Đầu Tư Tài Chính Cho Thế Hệ Tương Lai Việt Nam',
-          desc: 'Khám phá những chiến lược đầu tư thông minh cho thế hệ trẻ Việt Nam trong bối cảnh kinh tế hiện đại. Từ chứng khoán đến crypto, tất cả đều có ở đây!',
-          image: 'https://images.fpt.edu.vn/fpt-university.jpg',
-          views: 1250,
-          comments: 23,
-          trending: true,
-     },
-     {
-          id: 2,
-          tag: 'Economic Policy',
-          title: '💰 Fed Giữ Nguyên Lãi Suất: Cơ Hội Vàng Cho Nhà Đầu Tư',
-          desc: 'Quyết định mới nhất của Fed về lãi suất và những tác động tích cực đến thị trường chứng khoán toàn cầu. Đây có phải là thời điểm vàng để đầu tư?',
-          image: 'https://images.fpt.edu.vn/fpt-university.jpg',
-          views: 1800,
-          comments: 67,
-          trending: true,
-     },
-     {
-          id: 3,
-          tag: 'Trading Strategy',
-          title: '📈 Chiến Lược Trading Ngắn Hạn Cho Người Mới Bắt Đầu',
-          desc: 'Hướng dẫn từ A-Z về các chiến lược trading ngắn hạn hiệu quả, phù hợp cho nhà đầu tư mới vào nghề.',
-          image: 'https://images.fpt.edu.vn/fpt-university.jpg',
-          views: 3200,
-          comments: 89,
-          trending: true,
-     },
-];
-
-const latestArticles = [
-     // Có thể dùng lại trendingArticles hoặc thêm mới
-     ...trendingArticles,
-];
-
 export default function Blog() {
   const navigation = useNavigation();
   const [latestBlogs, setLatestBlogs] = useState([])
   const [trendingBlogs, setTrendingBlogs] = useState([])
 
      // Call data đây nè
-     const fetchLatestBlogs = async () => {
+  const fetchLatestBlogs = async () => {
           const data = await getLatestBlogs()
           setLatestBlogs(data.data.data)
      }
 
      const fetchTrendingBlogs = async () => {
-          const data = await getTrendingBlogs()
+       const data = await getTrendingBlogs()
+       console.log("trending blogs",data)
           setTrendingBlogs(data.data)
      }
 
@@ -125,7 +88,7 @@ export default function Blog() {
                          <Image source={{ uri: blog.sourceUrl }} style={styles.cardImageVertical} />
                          <View style={styles.cardContentVertical}>
                               <View style={styles.tagRow}>
-                                   <Text style={styles.tag}>{blog.tag.name}</Text>
+                                   <Text style={styles.tag}>{blog?.tag?.name}</Text>
                               </View>
                               <Text style={styles.cardTitle}>{blog.title}</Text>
                               <Text style={styles.cardDesc} numberOfLines={2}>{blog.content}</Text>
