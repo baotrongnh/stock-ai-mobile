@@ -58,6 +58,17 @@ export default function Blog() {
           >
             <Text style={styles.createBtnText}>+ Create</Text>
           </TouchableOpacity>
+          <View style={styles.searchBox}>
+            <TextInput
+              placeholder="Search for insights, strategies, analysis..."
+              style={styles.input}
+            />
+            <TouchableOpacity style={styles.filterBtn}>
+              <Text style={{ color: "#f59e42", fontWeight: "bold" }}>
+                Filter
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Trending Section */}
@@ -68,7 +79,7 @@ export default function Blog() {
             showsHorizontalScrollIndicator={false}
             style={{ marginBottom: 16 }}
           >
-            {(trendingBlogs || []).map((blog) => (
+            {trendingBlogs?.map((blog) => (
               <TouchableOpacity
                 key={blog.postId}
                 style={styles.card}
@@ -116,7 +127,7 @@ export default function Blog() {
         {/* Latest Articles Section */}
         <View>
           <Text style={styles.sectionTitle}>📚 Latest Articles</Text>
-          {(latestBlogs || []).map((blog) => (
+          {latestBlogs.map((blog) => (
             <TouchableOpacity
               key={blog.postId}
               style={styles.cardVertical}
@@ -215,7 +226,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     gap: 8,
   },
+  searchBox: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
   input: { flex: 1, fontSize: 15, padding: 6 },
+  filterBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#f59e42",
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",

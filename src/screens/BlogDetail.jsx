@@ -1,4 +1,6 @@
-import { ActivityIndicator, SafeAreaView } from "react-native";
+import { ActivityIndicator, SafeAreaView, Modal } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import {
@@ -12,20 +14,52 @@ import {
   Alert,
 } from "react-native";
 import { getBlogDetail } from "../apis/blog";
+import { reportBlogOrComment } from "../apis/report";
 import { getAllComments, createComment } from "../apis/comment";
+import { saveFavoritePost, votePost } from "../apis/vote";
 import { formatText } from "../utils/blog";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// ...existing code...
 export default function BlogDetail({ route }) {
+  const [isFavoriting, setIsFavoriting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [comments, setComments] = useState([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
   const navigation = useNavigation();
   const { blogId } = route.params;
   const [blog, setBlog] = useState(null);
-  // console.log(blog)
+  const [voteLoading, setVoteLoading] = useState(false);
+  // Handle upvote/downvote
+  const handleVote = async (voteType) => {
+    if (!blogId) return;
+    setVoteLoading(true);
+    try {
+      await votePost(blogId, voteType);
+      await fetchBlogDetail(); // Always refetch to get latest state from server
+    } catch (err) {
+      Alert.alert("Error", "Failed to vote!");
+    } finally {
+      setVoteLoading(false);
+    }
+  };
+
+  const handleFavoritePost = async () => {
+    if (!blogId) return;
+    setIsFavoriting(true);
+    try {
+      await saveFavoritePost(blogId);
+      Alert.alert("Success", "Post saved to favorites!");
+    } catch (err) {
+      Alert.alert("Error", "Failed to save favorite!");
+    } finally {
+      setIsFavoriting(false);
+    }
+  };
 
   const fetchBlogDetail = async () => {
     setIsLoading(true);
@@ -40,6 +74,7 @@ export default function BlogDetail({ route }) {
 
   const fetchComments = async () => {
     setIsLoadingComments(true);
+    console.log(blogId);
     const data = await getAllComments(blogId);
     if (!data.error) {
       setComments(data);
@@ -72,7 +107,7 @@ export default function BlogDetail({ route }) {
       const commentData = {
         postId: blogId,
         content: newComment.trim(),
-        parentCommentId: 0, // For main comments
+        parentCommentId: 0,
       };
 
       const response = await createComment(commentData);
@@ -88,6 +123,29 @@ export default function BlogDetail({ route }) {
       Alert.alert("Error", error.message || "Something went wrong");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleReportBlog = async () => {
+    if (!reportReason.trim()) {
+      Alert.alert("Error", "Please enter a reason for reporting.");
+      return;
+    }
+    setIsReporting(true);
+    try {
+      await reportBlogOrComment({
+        postId: blogId,
+        commentId: 0,
+        reason: reportReason.trim(),
+        status: "PENDING",
+      });
+      setShowReportModal(false);
+      setReportReason("");
+      Alert.alert("Success", "Report sent successfully!");
+    } catch (err) {
+      Alert.alert("Error", "Report failed!");
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -107,10 +165,22 @@ export default function BlogDetail({ route }) {
               </TouchableOpacity>
               <View style={styles.headerActions}>
                 <TouchableOpacity style={styles.actionBtn}>
-                  <Text style={styles.actionText}>Share</Text>
+                  <Text style={styles.actionText}>📎</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn}>
-                  <Text style={styles.actionText}>Save</Text>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={handleFavoritePost}
+                  disabled={isFavoriting}
+                >
+                  <Text style={styles.actionText}>
+                    {isFavoriting ? "⏳" : "❤️"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.reportBtn}
+                  onPress={() => setShowReportModal(true)}
+                >
+                  <Text style={styles.reportBtnText}>❗</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -137,8 +207,8 @@ export default function BlogDetail({ route }) {
             {/* Title */}
             <Text style={styles.title}>{blog?.title}</Text>
 
-            {/* Meta info */}
-            <View style={styles.metaRow}>
+            {/* Meta info + Vote */}
+            <View style={[styles.metaRow, { flexWrap: "wrap" }]}>
               <Text style={styles.metaText}>👤 {blog?.expert?.fullName}</Text>
               <Text style={styles.metaDot}>·</Text>
               <Text style={styles.metaText}>
@@ -158,6 +228,61 @@ export default function BlogDetail({ route }) {
               <Text style={styles.metaText}>5 min read</Text>
               <Text style={styles.metaDot}>·</Text>
               <Text style={styles.metaText}>👁 {blog?.viewCount} views</Text>
+              {/* Like/Dislike */}
+              <Text style={styles.metaDot}>·</Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginRight: 8,
+                }}
+                onPress={() => handleVote("UPVOTE")}
+                disabled={voteLoading || blog?.userVoteType === "UPVOTE"}
+              >
+                <MaterialCommunityIcons
+                  name={
+                    blog?.userVoteType === "UPVOTE"
+                      ? "thumb-up"
+                      : "thumb-up-outline"
+                  }
+                  size={20}
+                  color={blog?.userVoteType === "UPVOTE" ? "#22c55e" : "#888"}
+                  style={{ marginRight: 2 }}
+                />
+                <Text
+                  style={{
+                    color: blog?.userVoteType === "UPVOTE" ? "#22c55e" : "#888",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {blog?.upvoteCount || 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center" }}
+                onPress={() => handleVote("DOWNVOTE")}
+                disabled={voteLoading || blog?.userVoteType === "DOWNVOTE"}
+              >
+                <MaterialCommunityIcons
+                  name={
+                    blog?.userVoteType === "DOWNVOTE"
+                      ? "thumb-down"
+                      : "thumb-down-outline"
+                  }
+                  size={20}
+                  color={blog?.userVoteType === "DOWNVOTE" ? "#ef4444" : "#888"}
+                  style={{ marginRight: 2 }}
+                />
+                <Text
+                  style={{
+                    color:
+                      blog?.userVoteType === "DOWNVOTE" ? "#ef4444" : "#888",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {blog?.downvoteCount || 0}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Image */}
@@ -192,7 +317,12 @@ export default function BlogDetail({ route }) {
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.commentSubmitBtnText}>Comment</Text>
+                  <MaterialCommunityIcons
+                    name="send"
+                    size={22}
+                    color="#fff"
+                    style={{ marginLeft: 2 }}
+                  />
                 )}
               </TouchableOpacity>
             </View>
@@ -242,6 +372,52 @@ export default function BlogDetail({ route }) {
             </View>
           </>
         )}
+        {/* Report Modal */}
+        <Modal
+          visible={showReportModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowReportModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Report Blog</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter reason for reporting..."
+                value={reportReason}
+                onChangeText={setReportReason}
+                multiline
+                maxLength={300}
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalCancelBtn]}
+                  onPress={() => {
+                    setShowReportModal(false);
+                    setReportReason("");
+                  }}
+                  disabled={isReporting}
+                >
+                  <Text style={styles.modalBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalBtn,
+                    styles.modalSubmitBtn,
+                    isReporting && { opacity: 0.7 },
+                  ]}
+                  onPress={handleReportBlog}
+                  disabled={isReporting}
+                >
+                  <Text style={styles.modalBtnText}>
+                    {isReporting ? "Reporting..." : "Submit"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -403,5 +579,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: "italic",
     paddingVertical: 20,
+  },
+  reportBtn: {
+    backgroundColor: "#fff0f0",
+    borderColor: "#ff4d4f",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 8,
+    alignSelf: "center",
+  },
+  reportBtnText: {
+    color: "#ff4d4f",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "stretch",
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#ef4444",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+    minHeight: 60,
+    fontSize: 15,
+    marginBottom: 16,
+    color: "#222",
+    backgroundColor: "#f9fafb",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  modalBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalCancelBtn: {
+    backgroundColor: "#f3f4f6",
+  },
+  modalSubmitBtn: {
+    backgroundColor: "#ef4444",
+  },
+  modalBtnText: {
+    color: "#222",
+    fontWeight: "bold",
+    fontSize: 15,
   },
 });
