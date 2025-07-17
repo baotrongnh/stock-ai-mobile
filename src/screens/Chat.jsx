@@ -1,30 +1,75 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from "react-native";
+import { useRef, useState, useEffect } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView, Alert } from "react-native";
+import { sendChatMessage, testDeepSeekConnection } from "../apis/deepseek";
 
-const FAKE_BOT_RESPONSES = ["I'm StockGPT, your AI financial assistant. How can I help you today?", "Here's a quick summary of the market: S&P 500 is up 0.5%, tech stocks are leading.", "TSLA is showing strong momentum, but keep an eye on volatility.", "The P/E ratio is a valuation metric. A lower P/E can mean undervalued, but context matters.", "For portfolio review, diversify across sectors and rebalance quarterly.", "Let me know if you want a stock analysis or market news!"];
-
-const SUGGESTIONS = ["Phân tích cổ phiếu AAPL", "Tóm tắt thị trường hôm nay", "Top cổ phiếu công nghệ nên theo dõi", "Giải thích chỉ số P/E", "Dự báo thị trường quý tới", "Đánh giá danh mục đầu tư"];
+const SUGGESTIONS = [
+  "Phân tích cổ phiếu VNM hiện tại",
+  "Tóm tắt thị trường chứng khoán VN hôm nay",
+  "Top 5 cổ phiếu ngân hàng nên quan tâm",
+  "Giải thích chỉ số P/E và P/B",
+  "Dự báo xu hướng thị trường quý 4",
+  "Cách đọc biểu đồ nến Nhật",
+  "Phân tích nhóm cổ phiếu bất động sản",
+  "Chiến lược đầu tư dài hạn cho người mới"
+];
 
 export default function Chat() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([{ role: "bot", text: "Xin chào! Tôi là StockGPT, trợ lý tài chính AI của bạn. Hãy hỏi tôi bất cứ điều gì về cổ phiếu hoặc thị trường." }]);
+  const [messages, setMessages] = useState([
+    {
+      role: "bot",
+      text: "Xin chào! Tôi là StockGPT - chuyên gia phân tích chứng khoán với hơn 20 năm kinh nghiệm. Tôi có thể giúp bạn:\n\n📈 Phân tích kỹ thuật và cơ bản\n📊 Đánh giá cổ phiếu và định giá\n📰 Theo dõi thị trường VN và quốc tế\n💡 Tư vấn chiến lược đầu tư\n\nHãy hỏi tôi bất cứ điều gì về chứng khoán!"
+    }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef();
 
-  const handleSend = (customText) => {
+  // Test kết nối khi component mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      const result = await testDeepSeekConnection();
+      if (!result.success) {
+        Alert.alert(
+          "Cảnh báo API",
+          "Không thể kết nối Gemini API. Vui lòng kiểm tra API key trong file deepseek.js",
+          [{ text: "OK" }]
+        );
+      }
+    };
+    checkConnection();
+  }, []);
+
+  const handleSend = async (customText) => {
     const text = typeof customText === "string" ? customText : input.trim();
-    if (!text) return;
+    if (!text || isLoading) return;
+
     const userMsg = { role: "user", text };
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
-    // Fake bot response
-    setTimeout(() => {
+    setIsLoading(true);
+
+    try {
+      // Gửi tin nhắn đến DeepSeek API
+      const response = await sendChatMessage(updatedMessages);
+
       const botMsg = {
         role: "bot",
-        text: FAKE_BOT_RESPONSES[Math.floor(Math.random() * FAKE_BOT_RESPONSES.length)],
+        text: response.success ? response.message : "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau.",
       };
-      setMessages((prev) => [...prev, botMsg]);
-    }, 900);
+
+      setMessages(prev => [...prev, botMsg]);
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMsg = {
+        role: "bot",
+        text: "Đã có lỗi xảy ra. Vui lòng kiểm tra kết nối internet và thử lại.",
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,7 +104,9 @@ export default function Chat() {
                 </View>
               )}
               <View style={[styles.bubble, msg.role === "user" ? styles.userBubble : styles.botBubble]}>
-                <Text style={styles.bubbleText}>{msg.text}</Text>
+                <Text style={[styles.bubbleText, msg.role === "user" ? styles.userBubbleText : styles.botBubbleText]}>
+                  {msg.text}
+                </Text>
               </View>
               {msg.role === "user" && (
                 <View style={styles.avatarUser}>
@@ -68,12 +115,43 @@ export default function Chat() {
               )}
             </View>
           ))}
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <View style={[styles.messageRow, styles.botRow]}>
+              <View style={styles.avatarBot}>
+                <MaterialIcons name="smart-toy" size={22} color="#ef4444" />
+              </View>
+              <View style={[styles.bubble, styles.botBubble, styles.loadingBubble]}>
+                <Text style={styles.loadingText}>Đang phân tích...</Text>
+                <View style={styles.typingDots}>
+                  <View style={[styles.dot, styles.dot1]} />
+                  <View style={[styles.dot, styles.dot2]} />
+                  <View style={[styles.dot, styles.dot3]} />
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         {/* Chat Input */}
         <View style={styles.inputBar}>
-          <TextInput style={styles.input} placeholder="Nhập câu hỏi về cổ phiếu, thị trường…" value={input} onChangeText={setInput} onSubmitEditing={handleSend} returnKeyType="send" />
-          <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+          <TextInput
+            style={styles.input}
+            placeholder="Hỏi về cổ phiếu, phân tích kỹ thuật, thị trường..."
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            editable={!isLoading}
+            multiline={true}
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, isLoading && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={isLoading}
+          >
             <Ionicons name="send" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -88,19 +166,29 @@ const styles = StyleSheet.create({
   subtitle: { color: "#666", fontSize: 13, marginBottom: 6 },
   suggestionBarWrapper: { backgroundColor: "#fff", borderBottomWidth: 1, borderColor: "#f3f4f6", height: 48, justifyContent: "center" },
   suggestionBar: { flexGrow: 0, height: 40 },
-  suggestionBtn: { backgroundColor: "#f3f4f6", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, justifyContent: "center", height: 32 },
-  suggestionText: { color: "#222", fontSize: 13, fontWeight: "bold" },
+  suggestionBtn: { backgroundColor: "#f3f4f6", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, justifyContent: "center", height: 32 },
+  suggestionText: { color: "#222", fontSize: 12, fontWeight: "500" },
   chatContainer: { flex: 1, backgroundColor: "#f9fafb", paddingHorizontal: 10 },
-  messageRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 10, paddingHorizontal: 4 },
+  messageRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 12, paddingHorizontal: 4 },
   userRow: { justifyContent: "flex-end" },
   botRow: { justifyContent: "flex-start" },
-  bubble: { maxWidth: "75%", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  bubble: { maxWidth: "75%", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12 },
   userBubble: { backgroundColor: "#ef4444", marginLeft: 40 },
-  botBubble: { backgroundColor: "#f3f4f6", marginRight: 40 },
-  bubbleText: { color: "#222", fontSize: 15 },
-  avatarBot: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#fde68a", alignItems: "center", justifyContent: "center", marginRight: 8 },
-  avatarUser: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#e0e7ff", alignItems: "center", justifyContent: "center", marginLeft: 8 },
-  inputBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderColor: "#f3f4f6" },
-  input: { flex: 1, fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: "#f3f4f6", borderRadius: 8, marginRight: 8 },
-  sendBtn: { backgroundColor: "#ef4444", borderRadius: 8, padding: 10 },
+  botBubble: { backgroundColor: "#fff", marginRight: 40, borderWidth: 1, borderColor: "#f3f4f6" },
+  bubbleText: { fontSize: 15, lineHeight: 20 },
+  userBubbleText: { color: "#fff" },
+  botBubbleText: { color: "#222" },
+  loadingBubble: { backgroundColor: "#f8f9fa" },
+  loadingText: { color: "#666", fontSize: 14, marginBottom: 8 },
+  typingDots: { flexDirection: "row", alignItems: "center" },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#ef4444", marginRight: 4 },
+  dot1: { animationDelay: "0s" },
+  dot2: { animationDelay: "0.2s" },
+  dot3: { animationDelay: "0.4s", marginRight: 0 },
+  avatarBot: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#fde68a", alignItems: "center", justifyContent: "center", marginRight: 8 },
+  avatarUser: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#e0e7ff", alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  inputBar: { flexDirection: "row", alignItems: "flex-end", backgroundColor: "#fff", paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderColor: "#f3f4f6" },
+  input: { flex: 1, fontSize: 15, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: "#f3f4f6", borderRadius: 12, marginRight: 8, maxHeight: 100, minHeight: 40 },
+  sendBtn: { backgroundColor: "#ef4444", borderRadius: 12, padding: 12, justifyContent: "center", alignItems: "center" },
+  sendBtnDisabled: { backgroundColor: "#ccc" },
 });
