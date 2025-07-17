@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -90,165 +91,167 @@ export default function CreatePost() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Post</Text>
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            (isSubmitting || !title.trim() || !content.trim()) &&
+    <SafeAreaView style={{flex: 1}}>
+      <ScrollView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create New Post</Text>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              (isSubmitting || !title.trim() || !content.trim()) &&
               styles.submitButtonDisabled,
-          ]}
-          onPress={handleSubmit}
-          disabled={isSubmitting || !title.trim() || !content.trim()}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Post</Text>
+            ]}
+            onPress={handleSubmit}
+            disabled={isSubmitting || !title.trim() || !content.trim()}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Post</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Form */}
+        <View style={styles.form}>
+          {/* Level Selection */}
+          <View style={styles.radioGroup}>
+            <Text style={styles.label}>Level:</Text>
+            <View style={styles.radioOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.radioOption,
+                  level === "MARKET" && styles.radioOptionSelected,
+                ]}
+                onPress={() => setLevel("MARKET")}
+              >
+                <Text
+                  style={[
+                    styles.radioText,
+                    level === "MARKET" && styles.radioTextSelected,
+                  ]}
+                >
+                  Market Level
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.radioOption,
+                  level === "STOCK" && styles.radioOptionSelected,
+                ]}
+                onPress={() => setLevel("STOCK")}
+              >
+                <Text
+                  style={[
+                    styles.radioText,
+                    level === "STOCK" && styles.radioTextSelected,
+                  ]}
+                >
+                  Stock Level
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Session Selection */}
+          <View style={styles.radioGroup}>
+            <Text style={styles.label}>Session:</Text>
+            <View style={styles.radioOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.radioOption,
+                  session === 1 && styles.radioOptionSelected,
+                ]}
+                onPress={() => setSession(1)}
+              >
+                <Text
+                  style={[
+                    styles.radioText,
+                    session === 1 && styles.radioTextSelected,
+                  ]}
+                >
+                  Morning
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.radioOption,
+                  session === 2 && styles.radioOptionSelected,
+                ]}
+                onPress={() => setSession(2)}
+              >
+                <Text
+                  style={[
+                    styles.radioText,
+                    session === 2 && styles.radioTextSelected,
+                  ]}
+                >
+                  Afternoon
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.radioOption,
+                  session === 3 && styles.radioOptionSelected,
+                ]}
+                onPress={() => setSession(3)}
+              >
+                <Text
+                  style={[
+                    styles.radioText,
+                    session === 3 && styles.radioTextSelected,
+                  ]}
+                >
+                  Full Day
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Title Input */}
+          <TextInput
+            style={styles.titleInput}
+            placeholder="Post Title"
+            value={title}
+            onChangeText={setTitle}
+            maxLength={100}
+          />
+
+          {/* Content Input */}
+          <TextInput
+            style={styles.contentInput}
+            placeholder="Write your post content here..."
+            value={content}
+            onChangeText={setContent}
+            multiline
+            textAlignVertical="top"
+          />
+
+          {/* Image Upload */}
+          <TouchableOpacity style={styles.imageUploadButton} onPress={pickImage}>
+            <Text style={styles.imageUploadText}>
+              {image ? "Change Image" : "Add Image"}
+            </Text>
+          </TouchableOpacity>
+
+          {image && (
+            <View style={styles.imagePreviewContainer}>
+              <Image source={{ uri: image }} style={styles.imagePreview} />
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={() => setImage(null)}
+              >
+                <Text style={styles.removeImageText}>×</Text>
+              </TouchableOpacity>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Form */}
-      <View style={styles.form}>
-        {/* Level Selection */}
-        <View style={styles.radioGroup}>
-          <Text style={styles.label}>Level:</Text>
-          <View style={styles.radioOptions}>
-            <TouchableOpacity
-              style={[
-                styles.radioOption,
-                level === "MARKET" && styles.radioOptionSelected,
-              ]}
-              onPress={() => setLevel("MARKET")}
-            >
-              <Text
-                style={[
-                  styles.radioText,
-                  level === "MARKET" && styles.radioTextSelected,
-                ]}
-              >
-                Market Level
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.radioOption,
-                level === "STOCK" && styles.radioOptionSelected,
-              ]}
-              onPress={() => setLevel("STOCK")}
-            >
-              <Text
-                style={[
-                  styles.radioText,
-                  level === "STOCK" && styles.radioTextSelected,
-                ]}
-              >
-                Stock Level
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
-
-        {/* Session Selection */}
-        <View style={styles.radioGroup}>
-          <Text style={styles.label}>Session:</Text>
-          <View style={styles.radioOptions}>
-            <TouchableOpacity
-              style={[
-                styles.radioOption,
-                session === 1 && styles.radioOptionSelected,
-              ]}
-              onPress={() => setSession(1)}
-            >
-              <Text
-                style={[
-                  styles.radioText,
-                  session === 1 && styles.radioTextSelected,
-                ]}
-              >
-                Morning
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.radioOption,
-                session === 2 && styles.radioOptionSelected,
-              ]}
-              onPress={() => setSession(2)}
-            >
-              <Text
-                style={[
-                  styles.radioText,
-                  session === 2 && styles.radioTextSelected,
-                ]}
-              >
-                Afternoon
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.radioOption,
-                session === 3 && styles.radioOptionSelected,
-              ]}
-              onPress={() => setSession(3)}
-            >
-              <Text
-                style={[
-                  styles.radioText,
-                  session === 3 && styles.radioTextSelected,
-                ]}
-              >
-                Full Day
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Title Input */}
-        <TextInput
-          style={styles.titleInput}
-          placeholder="Post Title"
-          value={title}
-          onChangeText={setTitle}
-          maxLength={100}
-        />
-
-        {/* Content Input */}
-        <TextInput
-          style={styles.contentInput}
-          placeholder="Write your post content here..."
-          value={content}
-          onChangeText={setContent}
-          multiline
-          textAlignVertical="top"
-        />
-
-        {/* Image Upload */}
-        <TouchableOpacity style={styles.imageUploadButton} onPress={pickImage}>
-          <Text style={styles.imageUploadText}>
-            {image ? "Change Image" : "Add Image"}
-          </Text>
-        </TouchableOpacity>
-
-        {image && (
-          <View style={styles.imagePreviewContainer}>
-            <Image source={{ uri: image }} style={styles.imagePreview} />
-            <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={() => setImage(null)}
-            >
-              <Text style={styles.removeImageText}>×</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
