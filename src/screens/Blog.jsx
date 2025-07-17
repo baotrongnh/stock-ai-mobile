@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,24 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { getAllBlogs, getLatestBlogs, getTrendingBlogs } from "../apis/blog";
+import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 
 export default function Blog() {
   const navigation = useNavigation();
   const [latestBlogs, setLatestBlogs] = useState([]);
   const [trendingBlogs, setTrendingBlogs] = useState([]);
+  const [filteredBlogs, setFilteredBlogs] = useState([]);
+  const [showFilter, setShowFilter] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    stockCode: '',
+    sentiment: '',
+    level: '',
+    session: ''
+  });
 
   const fetchLatestBlogs = async () => {
     const data = await getLatestBlogs();
@@ -27,10 +38,94 @@ export default function Blog() {
     setTrendingBlogs(data.data);
   };
 
+  const applyFilters = (autoApply = false) => {
+    setIsFiltering(true);
+
+    let filtered = [...latestBlogs];
+
+    // Filter by search term (stock symbol)
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(blog =>
+        blog.stock?.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by stock code (symbol) from filter panel
+    if (filters.stockCode) {
+      filtered = filtered.filter(blog =>
+        blog.stock?.symbol?.toLowerCase().includes(filters.stockCode.toLowerCase())
+      );
+    }
+
+    // Filter by sentiment
+    if (filters.sentiment) {
+      filtered = filtered.filter(blog => blog.sentiment === filters.sentiment);
+    }
+
+    // Filter by level
+    if (filters.level) {
+      filtered = filtered.filter(blog => blog.level === filters.level);
+    }
+
+    // Filter by session (1: sáng, 2: chiều, 3: ngày)
+    if (filters.session) {
+      let sessionValue;
+      if (filters.session === 'Phiên sáng') sessionValue = 1;
+      else if (filters.session === 'Phiên chiều') sessionValue = 2;
+      else if (filters.session === 'Cả ngày') sessionValue = 3;
+
+      if (sessionValue) {
+        filtered = filtered.filter(blog => blog.session === sessionValue);
+      }
+    }
+
+    setFilteredBlogs(filtered);
+    setIsFiltering(false);
+
+    // Only close filter panel if it's manual apply (not auto-apply)
+    if (!autoApply) {
+      setShowFilter(false);
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setFilters({ stockCode: '', sentiment: '', level: '', session: '' });
+    setFilteredBlogs([]);
+    setIsFiltering(false);
+  };
+
+  // Determine which blogs to display
+  const displayBlogs = isFiltering || searchTerm.trim() || Object.values(filters).some(value => value !== '')
+    ? filteredBlogs
+    : latestBlogs;
+
   useEffect(() => {
     fetchLatestBlogs();
     fetchTrendingBlogs();
   }, []);
+
+  // Clear filters when screen is focused (user comes back to this tab)
+  useFocusEffect(
+    useCallback(() => {
+      // Clear filters when tab is focused
+      setSearchTerm('');
+      setFilters({ stockCode: '', sentiment: '', level: '', session: '' });
+      setFilteredBlogs([]);
+      setIsFiltering(false);
+      setShowFilter(false);
+    }, [])
+  );
+
+  // Auto-apply search when search term changes
+  useEffect(() => {
+    if (searchTerm.trim() || Object.values(filters).some(value => value !== '')) {
+      applyFilters(true); // Pass true for auto-apply
+    } else {
+      setFilteredBlogs([]);
+      setIsFiltering(false);
+    }
+  }, [searchTerm, filters, latestBlogs]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
@@ -44,11 +139,142 @@ export default function Blog() {
                 <Text style={styles.blogBadgeText}>Blog</Text>
               </View>
             </View>
-            <Text style={styles.subtitle}>
-              Discover the latest trends, analysis, and expert opinions
-            </Text>
+            <View style={styles.searchRow}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={18} color="#aaa" style={{ marginRight: 6 }} />
+                <TextInput
+                  placeholder="Search by stock symbol..."
+                  style={styles.input}
+                  value={searchTerm}
+                  onChangeText={setSearchTerm}
+                  onSubmitEditing={() => applyFilters(false)}
+                  returnKeyType="search"
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                />
+                {searchTerm.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearchTerm('')}
+                    style={{ marginLeft: 6 }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#aaa" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.filterBtn}
+                onPress={() => setShowFilter(!showFilter)}
+              >
+                <Text style={{ color: "#ef4444", fontWeight: "bold" }}>Filter</Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </View>
+
+        {/* Filter Panel */}
+        {showFilter && (
+          <View style={styles.filterPanel}>
+            {/* Stock Code Input */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Mã cổ phiếu</Text>
+              <TextInput
+                style={styles.filterInput}
+                placeholder="Nhập mã cổ phiếu (VD: VNM, FPT)..."
+                value={filters.stockCode}
+                onChangeText={(text) => setFilters({ ...filters, stockCode: text })}
+              />
+            </View>
+
+            {/* Sentiment Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Sentiment</Text>
+              <View style={styles.filterOptions}>
+                {['POSITIVE', 'NEGATIVE', 'NEUTRAL'].map((sentiment) => (
+                  <TouchableOpacity
+                    key={sentiment}
+                    style={[
+                      styles.filterOption,
+                      filters.sentiment === sentiment && styles.filterOptionActive
+                    ]}
+                    onPress={() => setFilters({ ...filters, sentiment: filters.sentiment === sentiment ? '' : sentiment })}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      filters.sentiment === sentiment && styles.filterOptionTextActive
+                    ]}>
+                      {sentiment}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Level Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Level</Text>
+              <View style={styles.filterOptions}>
+                {['MARKET', 'SYMBOL'].map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.filterOption,
+                      filters.level === level && styles.filterOptionActive
+                    ]}
+                    onPress={() => setFilters({ ...filters, level: filters.level === level ? '' : level })}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      filters.level === level && styles.filterOptionTextActive
+                    ]}>
+                      {level}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Session Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Session</Text>
+              <View style={styles.filterOptions}>
+                {['Phiên sáng', 'Phiên chiều', 'Cả ngày'].map((session) => (
+                  <TouchableOpacity
+                    key={session}
+                    style={[
+                      styles.filterOption,
+                      filters.session === session && styles.filterOptionActive
+                    ]}
+                    onPress={() => setFilters({ ...filters, session: filters.session === session ? '' : session })}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      filters.session === session && styles.filterOptionTextActive
+                    ]}>
+                      {session}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Filter Actions */}
+            <View style={styles.filterActions}>
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={clearAllFilters}
+              >
+                <Text style={styles.clearBtnText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyBtn}
+                onPress={() => applyFilters(false)}
+              >
+                <Text style={styles.applyBtnText}>Apply Filter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Actions Row */}
         <View style={styles.actionsContainer}>
@@ -91,8 +317,8 @@ export default function Blog() {
                         blog?.sentiment === "POSITIVE"
                           ? styles.positiveTag
                           : blog?.sentiment === "NEGATIVE"
-                          ? styles.negativeTag
-                          : null,
+                            ? styles.negativeTag
+                            : null,
                       ]}
                     >
                       {blog?.sentiment}
@@ -115,46 +341,64 @@ export default function Blog() {
 
         {/* Latest Articles Section */}
         <View>
-          <Text style={styles.sectionTitle}>📚 Latest Articles</Text>
-          {(latestBlogs || []).map((blog) => (
-            <TouchableOpacity
-              key={blog.postId}
-              style={styles.cardVertical}
-              onPress={() =>
-                navigation.navigate("BlogDetail", { blogId: blog.postId })
-              }
-            >
-              <Image
-                source={{ uri: blog.sourceUrl }}
-                style={styles.cardImageVertical}
-              />
-              <View style={styles.cardContentVertical}>
-                <View style={styles.tagRow}>
-                  <Text
-                    style={[
-                      styles.tag,
-                      blog?.sentiment === "POSITIVE"
-                        ? styles.positiveTag
-                        : blog?.sentiment === "NEGATIVE"
-                        ? styles.negativeTag
-                        : null,
-                    ]}
-                  >
-                    {blog?.sentiment}
+          <Text style={styles.sectionTitle}>
+            📚 Latest Articles
+            {searchTerm.trim() && ` - "${searchTerm}"`}
+            {(searchTerm.trim() || Object.values(filters).some(value => value !== '')) && ` (${displayBlogs.length} results)`}
+          </Text>
+          {displayBlogs.length === 0 && (searchTerm.trim() || Object.values(filters).some(value => value !== '')) ? (
+            <View style={{ alignItems: "center", padding: 32, marginHorizontal: 16 }}>
+              <Text style={{ fontSize: 16, color: "#666", textAlign: "center", marginBottom: 16 }}>
+                {searchTerm.trim()
+                  ? `No articles found for stock symbol "${searchTerm}"`
+                  : "No articles match your filters"
+                }
+              </Text>
+              <TouchableOpacity onPress={clearAllFilters} style={{ backgroundColor: "#f59e42", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}>
+                <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}>Clear search</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            (displayBlogs || []).map((blog) => (
+              <TouchableOpacity
+                key={blog.postId}
+                style={styles.cardVertical}
+                onPress={() =>
+                  navigation.navigate("BlogDetail", { blogId: blog.postId })
+                }
+              >
+                <Image
+                  source={{ uri: blog.sourceUrl }}
+                  style={styles.cardImageVertical}
+                />
+                <View style={styles.cardContentVertical}>
+                  <View style={styles.tagRow}>
+                    <Text
+                      style={[
+                        styles.tag,
+                        blog?.sentiment === "POSITIVE"
+                          ? styles.positiveTag
+                          : blog?.sentiment === "NEGATIVE"
+                            ? styles.negativeTag
+                            : null,
+                      ]}
+                    >
+                      {blog?.sentiment}
+                    </Text>
+                  </View>
+                  <Text style={styles.cardTitle}>{blog.title}</Text>
+                  <Text style={styles.cardDesc} numberOfLines={2}>
+                    {blog.content}
                   </Text>
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.footerText}>👁 {blog.viewCount}</Text>
+                    <Text style={styles.footerText}>👍 {blog.likeCount}</Text>
+                    <Text style={styles.readMore}>Read More</Text>
+                  </View>
                 </View>
-                <Text style={styles.cardTitle}>{blog.title}</Text>
-                <Text style={styles.cardDesc} numberOfLines={2}>
-                  {blog.content}
-                </Text>
-                <View style={styles.cardFooter}>
-                  <Text style={styles.footerText}>👁 {blog.viewCount}</Text>
-                  <Text style={styles.footerText}>👍 {blog.likeCount}</Text>
-                  <Text style={styles.readMore}>Read More</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         {/* Bottom Spacing */}
@@ -314,4 +558,94 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 13,
   },
+  searchRow: { flexDirection: "row", alignItems: "flex-start", marginHorizontal: 0, marginTop: 10, marginBottom: 8 },
+  searchBox: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, elevation: 1 },
+  input: { flex: 1, fontSize: 15, padding: 0 },
+  filterBtn: { marginLeft: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 6, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ef4444" },
+
+  // Filter Panel Styles
+  filterPanel: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f3f4f6",
+  },
+  filterSection: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#222",
+    marginBottom: 8,
+  },
+  filterInput: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    backgroundColor: "#f9fafb",
+  },
+  filterOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  filterOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+  },
+  filterOptionActive: {
+    backgroundColor: "#f59e42",
+    borderColor: "#f59e42",
+  },
+  filterOptionText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "500",
+  },
+  filterOptionTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  filterActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  clearBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+    alignItems: "center",
+  },
+  clearBtnText: {
+    color: "#666",
+    fontWeight: "500",
+  },
+  applyBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#f59e42",
+    alignItems: "center",
+  },
+  applyBtnText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
 });

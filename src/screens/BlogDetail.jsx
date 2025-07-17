@@ -74,7 +74,7 @@ export default function BlogDetail({ route }) {
 
   const fetchComments = async () => {
     setIsLoadingComments(true);
-    console.log(blogId);
+    // console.log(blogId);
     const data = await getAllComments(blogId);
     if (!data.error) {
       setComments(data);
@@ -197,10 +197,10 @@ export default function BlogDetail({ route }) {
                 {blog?.session === 1
                   ? "sáng"
                   : blog?.session === 2
-                  ? "chiều"
-                  : blog?.session === 3
-                  ? "ngày"
-                  : ""}
+                    ? "chiều"
+                    : blog?.session === 3
+                      ? "ngày"
+                      : ""}
               </Text>
             </View>
 
@@ -214,14 +214,14 @@ export default function BlogDetail({ route }) {
               <Text style={styles.metaText}>
                 {blog?.createdAt
                   ? (() => {
-                      const d = new Date(blog.createdAt);
-                      const pad = (n) => n.toString().padStart(2, "0");
-                      return `${pad(d.getDate())}/${pad(
-                        d.getMonth() + 1
-                      )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
-                        d.getMinutes()
-                      )}`;
-                    })()
+                    const d = new Date(blog.createdAt);
+                    const pad = (n) => n.toString().padStart(2, "0");
+                    return `${pad(d.getDate())}/${pad(
+                      d.getMonth() + 1
+                    )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
+                      d.getMinutes()
+                    )}`;
+                  })()
                   : ""}
               </Text>
               <Text style={styles.metaDot}>·</Text>
@@ -309,7 +309,7 @@ export default function BlogDetail({ route }) {
                 style={[
                   styles.commentSubmitBtn,
                   (isSubmitting || !newComment.trim()) &&
-                    styles.commentSubmitBtnDisabled,
+                  styles.commentSubmitBtnDisabled,
                 ]}
                 onPress={handleSubmitComment}
                 disabled={isSubmitting || !newComment.trim()}
@@ -350,14 +350,14 @@ export default function BlogDetail({ route }) {
                       <Text style={styles.commentTime}>
                         {comment.createdAt
                           ? (() => {
-                              const d = new Date(comment.createdAt);
-                              const pad = (n) => n.toString().padStart(2, "0");
-                              return `${pad(d.getDate())}/${pad(
-                                d.getMonth() + 1
-                              )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
-                                d.getMinutes()
-                              )}`;
-                            })()
+                            const d = new Date(comment.createdAt);
+                            const pad = (n) => n.toString().padStart(2, "0");
+                            return `${pad(d.getDate())}/${pad(
+                              d.getMonth() + 1
+                            )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
+                              d.getMinutes()
+                            )}`;
+                          })()
                           : ""}
                       </Text>
                     </View>

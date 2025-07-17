@@ -128,12 +128,12 @@ export default function Profile() {
                   {avatarFile ? (
                     <Image
                       source={{ uri: avatarFile.uri }}
-                      style={styles.avatarImage}
+                      style={styles.avatarImageEdit}
                     />
                   ) : profile.avatarUrl ? (
                     <Image
                       source={{ uri: profile.avatarUrl }}
-                      style={styles.avatarImage}
+                      style={styles.avatarImageEdit}
                     />
                   ) : (
                     <Ionicons name="person" size={60} color="#ef4444" />
@@ -339,6 +339,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avatarImage: { width: 86, height: 86, borderRadius: 43 },
+  avatarImageEdit: { 
+    width: 86, 
+    height: 86, 
+    borderRadius: 43,
+    marginTop: 18 
+  },
   name: {
     fontSize: 22,
     fontWeight: "bold",
@@ -394,5 +400,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     width: 220,
     alignSelf: "center",
+    marginTop: 8,
   },
 });
