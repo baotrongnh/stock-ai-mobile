@@ -231,7 +231,7 @@ export default function Profile() {
 
         {/* Favorite Posts Section */}
         {Array.isArray(profile.favoritePosts) &&
-        profile.favoritePosts.length > 0 ? (
+          profile.favoritePosts.length > 0 ? (
           <View style={{ marginHorizontal: 18, marginTop: 10 }}>
             <Text
               style={{
@@ -339,11 +339,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avatarImage: { width: 86, height: 86, borderRadius: 43 },
-  avatarImageEdit: { 
-    width: 86, 
-    height: 86, 
+  avatarImageEdit: {
+    width: 86,
+    height: 86,
     borderRadius: 43,
-    marginTop: 18 
+    marginTop: 18
   },
   name: {
     fontSize: 22,
