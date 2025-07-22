@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   SafeAreaView,
   Image,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getProfile } from "../apis/profile";
 import { updateProfile } from "../apis/profile";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
 export default function Profile() {
   const navigation = useNavigation();
@@ -24,16 +25,39 @@ export default function Profile() {
   const [editName, setEditName] = useState("");
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [activeTab, setActiveTab] = useState("profile"); // "profile", "favorites", "posts"
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchProfile = async () => {
-    const data = await getProfile();
-    setProfile(data.user || data.data || {});
+    try {
+      setIsRefreshing(true);
+      const data = await getProfile();
+      setProfile(data.user || data.data || {});
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
+  // Gọi fetchProfile khi component mount lần đầu
   useEffect(() => {
     fetchProfile();
     setEdit(false);
+    setActiveTab("profile");
   }, []);
+
+  // Cập nhật dữ liệu mỗi khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      // Cập nhật lại dữ liệu profile khi màn hình được focus lại
+      console.log("Profile screen focused - refreshing data");
+      fetchProfile();
+      return () => {
+        // Cleanup nếu cần
+      };
+    }, [])
+  );
 
   const handleEdit = () => {
     setEditName(profile.fullName || "");
@@ -177,123 +201,235 @@ export default function Profile() {
           </View>
         </View>
 
-        {/* Info Section */}
-        <View style={styles.infoRow}>
-          <View style={styles.infoCard}>
-            <View style={styles.infoFieldRow}>
-              <Ionicons
-                name="checkmark-circle"
-                size={16}
-                color={profile.status === 1 ? "#16a34a" : "#888"}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.infoLabel}>Trạng thái</Text>
-              <Text
-                style={[
-                  styles.infoValue,
-                  { color: profile.status === 1 ? "#16a34a" : "#888" },
-                ]}
-              >
-                {" "}
-                {profile.status === 1 ? "Active" : "Inactive"}
-              </Text>
-            </View>
-            <View style={styles.infoFieldRow}>
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color="#888"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.infoLabel}>Ngày tạo</Text>
-              <Text style={styles.infoValue}>
-                {profile.createdAt
-                  ? new Date(profile.createdAt).toLocaleDateString()
-                  : "Chưa cập nhật"}
-              </Text>
-            </View>
-            <View style={styles.infoFieldRow}>
-              <MaterialIcons
-                name="update"
-                size={16}
-                color="#888"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.infoLabel}>Cập nhật</Text>
-              <Text style={styles.infoValue}>
-                {profile.updatedAt
-                  ? new Date(profile.updatedAt).toLocaleDateString()
-                  : "Chưa cập nhật"}
-              </Text>
-            </View>
-          </View>
+        {/* Tabs Navigation */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "profile" && styles.activeTabButton,
+            ]}
+            onPress={() => setActiveTab("profile")}
+          >
+            <Ionicons
+              name="person"
+              size={20}
+              color={activeTab === "profile" ? "#ef4444" : "#888"}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "profile" && styles.activeTabText,
+              ]}
+            >
+              Thông tin
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "favorites" && styles.activeTabButton,
+            ]}
+            onPress={() => setActiveTab("favorites")}
+          >
+            <Ionicons
+              name="heart"
+              size={20}
+              color={activeTab === "favorites" ? "#ef4444" : "#888"}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "favorites" && styles.activeTabText,
+              ]}
+            >
+              Yêu thích
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === "posts" && styles.activeTabButton,
+            ]}
+            onPress={() => setActiveTab("posts")}
+          >
+            <Ionicons
+              name="newspaper"
+              size={20}
+              color={activeTab === "posts" ? "#ef4444" : "#888"}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "posts" && styles.activeTabText,
+              ]}
+            >
+              Bài viết
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Favorite Posts Section */}
-        {Array.isArray(profile.favoritePosts) &&
-          profile.favoritePosts.length > 0 ? (
-          <View style={{ marginHorizontal: 18, marginTop: 10 }}>
-            <Text
-              style={{
-                fontWeight: "bold",
-                fontSize: 18,
-                color: "#ef4444",
-                marginBottom: 10,
-              }}
-            >
-              Bài viết yêu thích
-            </Text>
-            {(profile.favoritePosts || []).map((post) => (
-              <TouchableOpacity
-                key={post.postId}
-                style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 12,
-                  marginBottom: 14,
-                  padding: 12,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  elevation: 1,
-                }}
-                activeOpacity={0.8}
-                onPress={() =>
-                  navigation.navigate("BlogDetail", { blogId: post.postId })
-                }
-              >
-                <Image
-                  source={{ uri: post.sourceUrl }}
-                  style={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 8,
-                    marginRight: 12,
-                    backgroundColor: "#eee",
-                  }}
+        {/* Profile Tab Content */}
+        {activeTab === "profile" && (
+          <View style={styles.tabContent}>
+            <View style={styles.infoCard}>
+              <View style={styles.infoFieldRow}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={profile.status === 1 ? "#16a34a" : "#888"}
+                  style={{ marginRight: 8 }}
                 />
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontWeight: "bold",
-                      fontSize: 15,
-                      color: "#222",
-                    }}
-                    numberOfLines={2}
-                  >
-                    {post.title}
-                  </Text>
-                  <Text style={{ color: "#888", fontSize: 13, marginTop: 2 }}>
-                    {post.createdAt
-                      ? new Date(post.createdAt).toLocaleDateString()
-                      : ""}
-                  </Text>
-                  <Text style={{ color: "#888", fontSize: 13, marginTop: 2 }}>
-                    👁 {post.viewCount || 0} lượt xem
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                <Text style={styles.infoLabel}>Trạng thái</Text>
+                <Text
+                  style={[
+                    styles.infoValue,
+                    { color: profile.status === 1 ? "#16a34a" : "#888" },
+                  ]}
+                >
+                  {" "}
+                  {profile.status === 1 ? "Active" : "Inactive"}
+                </Text>
+              </View>
+              <View style={styles.infoFieldRow}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color="#888"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.infoLabel}>Ngày tạo</Text>
+                <Text style={styles.infoValue}>
+                  {profile.createdAt
+                    ? new Date(profile.createdAt).toLocaleDateString()
+                    : "Chưa cập nhật"}
+                </Text>
+              </View>
+              <View style={styles.infoFieldRow}>
+                <MaterialIcons
+                  name="update"
+                  size={16}
+                  color="#888"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.infoLabel}>Cập nhật</Text>
+                <Text style={styles.infoValue}>
+                  {profile.updatedAt
+                    ? new Date(profile.updatedAt).toLocaleDateString()
+                    : "Chưa cập nhật"}
+                </Text>
+              </View>
+            </View>
           </View>
-        ) : null}
+        )}
+
+        {/* Favorite Posts Tab */}
+        {activeTab === "favorites" && (
+          <View style={styles.tabContent}>
+            {isRefreshing ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#ef4444" />
+                <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+              </View>
+            ) : Array.isArray(profile.favoritePosts) &&
+              profile.favoritePosts.length > 0 ? (
+              profile.favoritePosts.map((post) => (
+                <TouchableOpacity
+                  key={post.postId}
+                  style={styles.postItem}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    navigation.navigate("BlogDetail", { blogId: post.postId })
+                  }
+                >
+                  <Image
+                    source={{
+                      uri:
+                        post.sourceUrl ||
+                        "https://dummyimage.com/60x60/ccc/333.png&text=Post",
+                    }}
+                    style={styles.postImage}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.postTitle} numberOfLines={2}>
+                      {post.title}
+                    </Text>
+                    <Text style={styles.postMeta}>
+                      {post.createdAt
+                        ? new Date(post.createdAt).toLocaleDateString()
+                        : ""}
+                    </Text>
+                    <Text style={styles.postMeta}>
+                      👁 {post.viewCount || 0} lượt xem
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="heart-outline" size={40} color="#ccc" />
+                <Text style={styles.emptyStateText}>
+                  Bạn chưa có bài viết yêu thích nào
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* User Posts Tab */}
+        {activeTab === "posts" && (
+          <View style={styles.tabContent}>
+            {isRefreshing ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#ef4444" />
+                <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+              </View>
+            ) : Array.isArray(profile.posts) && profile.posts.length > 0 ? (
+              profile.posts.map((post) => (
+                <TouchableOpacity
+                  key={post.postId || post.id}
+                  style={styles.postItem}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    navigation.navigate("BlogDetail", {
+                      blogId: post.postId || post.id,
+                    })
+                  }
+                >
+                  <Image
+                    source={{
+                      uri:
+                        post.sourceUrl ||
+                        "https://dummyimage.com/60x60/ccc/333.png&text=Post",
+                    }}
+                    style={styles.postImage}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.postTitle} numberOfLines={2}>
+                      {post.title}
+                    </Text>
+                    <Text style={styles.postMeta}>
+                      {post.createdAt
+                        ? new Date(post.createdAt).toLocaleDateString()
+                        : ""}
+                    </Text>
+                    <Text style={styles.postMeta}>
+                      👁 {post.viewCount || 0} lượt xem
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="newspaper-outline" size={40} color="#ccc" />
+                <Text style={styles.emptyStateText}>
+                  Bạn chưa đăng bài viết nào
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -314,6 +450,99 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#ef4444" },
   subtitle: { color: "#666", fontSize: 14, marginLeft: 18, marginBottom: 8 },
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    marginHorizontal: 18,
+    marginTop: 16,
+    marginBottom: 0,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    padding: 5,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  activeTabButton: {
+    backgroundColor: "#fef2f2",
+  },
+  tabText: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "500",
+  },
+  activeTabText: {
+    color: "#ef4444",
+    fontWeight: "bold",
+  },
+  tabContent: {
+    backgroundColor: "#fff",
+    marginHorizontal: 18,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    minHeight: 200,
+  },
+  postItem: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  postImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: "#eee",
+  },
+  postContent: {
+    flex: 1,
+  },
+  postTitle: {
+    fontWeight: "bold",
+    fontSize: 15,
+    color: "#222",
+  },
+  postMeta: {
+    color: "#888",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 30,
+  },
+  emptyStateText: {
+    color: "#888",
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+  },
+  loadingText: {
+    color: "#888",
+    fontSize: 14,
+    marginTop: 12,
+  },
   profileCard: {
     backgroundColor: "#fff",
     marginHorizontal: 18,
@@ -343,7 +572,7 @@ const styles = StyleSheet.create({
     width: 86,
     height: 86,
     borderRadius: 43,
-    marginTop: 18
+    marginTop: 18,
   },
   name: {
     fontSize: 22,
