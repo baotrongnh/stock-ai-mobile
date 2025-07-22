@@ -19,7 +19,7 @@ export default function CreatePost() {
   const navigation = useNavigation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [stockId, setStockId] = useState(1); // Mã cổ phiếu (số)
+  const [stockId, setStockId] = useState(1);
   const [image, setImage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -44,7 +44,15 @@ export default function CreatePost() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        // Lấy tên file từ uri
+        let fileName = asset.uri.split("/").pop() || `image_${Date.now()}.jpg`;
+        // Lấy type
+        let fileType = asset.type || "image";
+        if (asset.mimeType) fileType = asset.mimeType;
+        else if (fileName.includes("."))
+          fileType = `image/${fileName.split(".").pop()}`;
+        setImage({ uri: asset.uri, name: fileName, type: fileType });
       }
     } catch (error) {
       Alert.alert("Error", "Failed to pick image");
@@ -71,14 +79,12 @@ export default function CreatePost() {
     try {
       setIsSubmitting(true);
 
-      const postData = {
-        title: title.trim(),
-        content: content.trim(),
-        stockId: Number(stockId),
-        file: image,
-      };
-
-      const response = await createPost(postData);
+      const response = await createPost(
+        title.trim(),
+        content.trim(),
+        Number(stockId),
+        image // có thể là null hoặc object { uri, name, type }
+      );
 
       if (!response.error) {
         Alert.alert("Success", "Post created successfully");
@@ -165,7 +171,7 @@ export default function CreatePost() {
 
           {image && (
             <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: image }} style={styles.imagePreview} />
+              <Image source={{ uri: image.uri }} style={styles.imagePreview} />
               <TouchableOpacity
                 style={styles.removeImageButton}
                 onPress={() => setImage(null)}

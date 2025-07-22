@@ -45,33 +45,37 @@ const getTrendingBlogs = async () => {
   }
 };
 
-const createPost = async (postData) => {
+const createPost = async (title, content, stockId, file) => {
   try {
     const formData = new FormData();
-
-    // Add text fields
-    formData.append("title", postData.title);
-    formData.append("content", postData.content);
-    formData.append("stockId", Number(postData.stockId));
-
-    if (postData.file) {
-      const uriParts = postData.file.split(".");
-      const fileType = uriParts[uriParts.length - 1];
-
-      formData.append("file", {
-        uri: postData.file,
-        name: `post-image.${fileType}`,
-        type: `image/${fileType}`,
-      });
+    formData.append("title", title);
+    if (content) formData.append("content", content);
+    if (stockId !== undefined) formData.append("stockId", stockId.toString());
+    if (file) {
+      formData.append("file", file);
     }
 
-    return await axiosClient.post("posts", formData, {
+    const response = await axiosClient.post("/posts", formData, {
       headers: {
-        "Content-Type": "multipart/form-data",
+        Accept: "application/json",
       },
     });
+
+    if (response && response.data && response.data.error === false) {
+      return {
+        success: true,
+        message: "Post created successfully",
+        data: response.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: response?.data?.message || "Failed to create post",
+        data: response?.data,
+      };
+    }
   } catch (error) {
-    console.error("Error in createPost:", error);
+    console.error("Error creating post:", error);
     throw error;
   }
 };
