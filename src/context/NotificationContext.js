@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import * as Notifications from "expo-notifications";
 import { Subscription } from "expo-modules-core";
-import { registerForPushNotificationsAsync } from "@/utils/registerForPushNotificationsAsync";
+import { registerForPushNotificationsAsync } from "../utils/registerForPushNotificationAsync";
 
 const NotificationContext = createContext(undefined);
 
