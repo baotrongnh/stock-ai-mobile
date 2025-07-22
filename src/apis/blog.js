@@ -52,16 +52,14 @@ const createPost = async (postData) => {
     // Add text fields
     formData.append("title", postData.title);
     formData.append("content", postData.content);
-    formData.append("level", postData.level);
-    formData.append("session", postData.session);
+    formData.append("stockId", Number(postData.stockId));
 
-    // Add image if exists
-    if (postData.image) {
-      const uriParts = postData.image.split(".");
+    if (postData.file) {
+      const uriParts = postData.file.split(".");
       const fileType = uriParts[uriParts.length - 1];
 
-      formData.append("image", {
-        uri: postData.image,
+      formData.append("file", {
+        uri: postData.file,
         name: `post-image.${fileType}`,
         type: `image/${fileType}`,
       });
