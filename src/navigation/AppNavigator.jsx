@@ -2,7 +2,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import BlogDetail from "../screens/BlogDetail";
 import PodcastDetail from "../screens/PodcastDetail";
-import { RootStack } from "./index";
+import RootStack from "./RootStack";
 import Login from "../screens/Login";
 import CreatePost from "../screens/CreatePost";
 

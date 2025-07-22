@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { use } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNotification } from '../context/NotificationContext';
 
 export default function HomeScreen() {
+  const { expoPushToken, notification, error } = useNotification();
+  if (error) return <></>
+
+  console.log(JSON.stringify(notification, null, 2));
+  console.log("Expo Push Token: ", expoPushToken);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#ef4444" />
