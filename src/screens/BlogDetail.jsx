@@ -15,11 +15,25 @@ import {
 } from "react-native";
 import { getBlogDetail } from "../apis/blog";
 import { reportBlogOrComment } from "../apis/report";
-import { getCommnentsByPostId, createComment } from "../apis/comment";
+import {
+  getCommnentsByPostId,
+  createComment,
+  createReplyComment,
+  getRepliesByCommentId,
+} from "../apis/comment";
+import { getProfile } from "../apis/profile";
 import { saveFavoritePost, votePost } from "../apis/vote";
 import { formatText } from "../utils/blog";
 
-// ...existing code...
+// Helper function to format date
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  const pad = (n) => n.toString().padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
 export default function BlogDetail({ route }) {
   const [isFavoriting, setIsFavoriting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +49,14 @@ export default function BlogDetail({ route }) {
     total: 0,
     totalPages: 1,
   });
+
+  // Reply state variables
+  const [replies, setReplies] = useState({}); // Store replies by commentId
+  const [replyingToComment, setReplyingToComment] = useState(null); // Track which comment user is replying to
+  const [replyingToReply, setReplyingToReply] = useState(null); // Track which reply user is replying to
+  const [replyParentId, setReplyParentId] = useState(null); // Store parent comment ID when replying to a reply
+  const [newReply, setNewReply] = useState(""); // Content of new reply
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -44,6 +66,7 @@ export default function BlogDetail({ route }) {
   const { blogId } = route.params;
   const [blog, setBlog] = useState(null);
   const [voteLoading, setVoteLoading] = useState(false);
+  const [profile, setProfile] = useState(null);
   // Handle upvote/downvote
   const handleVote = async (voteType) => {
     if (!blogId || !blog) return;
@@ -120,8 +143,186 @@ export default function BlogDetail({ route }) {
     setIsLoadingComments(false);
   };
 
+  // Function to load replies for a comment
+  const fetchReplies = async (commentId, page = 1, pageSize = 5) => {
+    try {
+      const response = await getRepliesByCommentId(commentId, page, pageSize);
+
+      setReplies((prev) => ({
+        ...prev,
+        [commentId]: {
+          data: response.replies || [],
+          count: response.count || 0,
+          note: response.note || "Không có trả lời nào.",
+          pagination: response.pagination || {
+            page,
+            pageSize,
+            total: 0,
+            totalPages: 1,
+          },
+          loading: false,
+        },
+      }));
+    } catch (error) {
+      console.error("Error fetching replies:", error);
+      setReplies((prev) => ({
+        ...prev,
+        [commentId]: {
+          data: [],
+          count: 0,
+          note: "Không thể tải trả lời.",
+          pagination: { page, pageSize, total: 0, totalPages: 1 },
+          loading: false,
+        },
+      }));
+    }
+  };
+
+  // Function to handle reply page change
+  const handleReplyPageChange = (commentId, page) => {
+    setReplies((prev) => ({
+      ...prev,
+      [commentId]: {
+        ...prev[commentId],
+        loading: true,
+      },
+    }));
+    fetchReplies(commentId, page);
+  };
+
+  // Function to toggle reply input for a comment
+  const toggleReplyInput = (commentId, replyId = null) => {
+    if (replyId) {
+      // Trả lời cho một reply
+      if (replyingToReply === replyId) {
+        // Cancel reply to reply
+        setReplyingToReply(null);
+        setReplyParentId(null);
+        setNewReply("");
+      } else {
+        // Start reply to reply
+        setReplyingToReply(replyId);
+        setReplyParentId(commentId);
+        setReplyingToComment(null);
+        setNewReply("");
+
+        // If replies haven't been loaded yet, load them
+        if (!replies[commentId]) {
+          setReplies((prev) => ({
+            ...prev,
+            [commentId]: {
+              data: [],
+              count: 0,
+              note: "Đang tải...",
+              pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1 },
+              loading: true,
+            },
+          }));
+          fetchReplies(commentId);
+        }
+      }
+    } else {
+      // Trả lời cho comment gốc
+      if (replyingToComment === commentId) {
+        setReplyingToComment(null);
+        setNewReply("");
+      } else {
+        setReplyingToComment(commentId);
+        setReplyingToReply(null);
+        setReplyParentId(null);
+        setNewReply("");
+
+        // If replies haven't been loaded yet, load them
+        if (!replies[commentId]) {
+          setReplies((prev) => ({
+            ...prev,
+            [commentId]: {
+              data: [],
+              count: 0,
+              note: "Đang tải...",
+              pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1 },
+              loading: true,
+            },
+          }));
+          fetchReplies(commentId);
+        }
+      }
+    }
+  };
+
+  // Function to submit reply
+  const handleSubmitReply = async () => {
+    // Kiểm tra xem đang trả lời comment hay reply
+    const commentId = replyingToComment || replyParentId;
+
+    if (!commentId || !newReply.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập nội dung trả lời");
+      return;
+    }
+
+    try {
+      setIsSubmittingReply(true);
+
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        Alert.alert("Lỗi", "Vui lòng đăng nhập để trả lời");
+        navigation.navigate("Login");
+        return;
+      }
+
+      // Tạo payload cho API
+      let replyContent = newReply.trim();
+
+      // Nếu đang trả lời một reply, thêm thẻ @username
+      if (replyingToReply) {
+        const parentReply = replies[replyParentId]?.data.find(
+          (r) => r.commentId === replyingToReply
+        );
+        if (parentReply) {
+          const replyUsername =
+            parentReply.user?.fullName ||
+            parentReply.userId?.fullName ||
+            "Anonymous";
+          replyContent = `@${replyUsername} ${replyContent}`;
+        }
+      }
+
+      const response = await createReplyComment({
+        commentId: commentId,
+        content: replyContent,
+      });
+
+      if (!response.error) {
+        setNewReply("");
+        // Refresh replies for this comment
+        fetchReplies(commentId);
+        Alert.alert("Thành công", "Đã gửi trả lời thành công");
+        setReplyingToComment(null);
+        setReplyingToReply(null);
+        setReplyParentId(null);
+      } else {
+        Alert.alert("Lỗi", response.message || "Không thể gửi trả lời");
+      }
+    } catch (error) {
+      Alert.alert("Lỗi", error.message || "Đã xảy ra lỗi");
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
+  // Fetch user profile for avatar display
+  const fetchUserProfile = async () => {
+    try {
+      const data = await getProfile();
+      setProfile(data.user || data.data || {});
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
+
   useEffect(() => {
     fetchBlogDetail();
+    fetchUserProfile();
   }, [blogId]);
 
   useEffect(() => {
@@ -164,23 +365,27 @@ export default function BlogDetail({ route }) {
   };
 
   const handleReportBlog = async () => {
+    console.log("blogId:", blogId);
     if (!reportReason.trim()) {
       Alert.alert("Error", "Please enter a reason for reporting.");
       return;
     }
     setIsReporting(true);
     try {
-      await reportBlogOrComment({
+      console.log("blogId:", blogId);
+      const result = await reportBlogOrComment({
         postId: blogId,
         commentId: 0,
         reason: reportReason.trim(),
         status: "PENDING",
       });
+      console.log("Report response:", result);
       setShowReportModal(false);
       setReportReason("");
       Alert.alert("Success", "Report sent successfully!");
     } catch (err) {
-      Alert.alert("Error", "Report failed!");
+      console.error("Report error:", err);
+      Alert.alert("Error", err.message || "Report failed!");
     } finally {
       setIsReporting(false);
     }
@@ -188,7 +393,10 @@ export default function BlogDetail({ route }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 80 }}
+      >
         {isLoading || !blog ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#ef4444" />
@@ -332,37 +540,78 @@ export default function BlogDetail({ route }) {
               </Text>
             </View>
 
-            {/* Comment Input Section */}
-            <View style={styles.commentInputContainer}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment..."
-                value={newComment}
-                onChangeText={setNewComment}
-                multiline
-                maxLength={1000}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.commentSubmitBtn,
-                  (isSubmitting || !newComment.trim()) &&
-                    styles.commentSubmitBtnDisabled,
-                ]}
-                onPress={handleSubmitComment}
-                disabled={isSubmitting || !newComment.trim()}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <MaterialCommunityIcons
-                    name="send"
-                    size={22}
-                    color="#fff"
-                    style={{ marginLeft: 2 }}
+            {/* Comment Input Section - with card style */}
+            {/* Facebook-style comment input at bottom */}
+            {!replyingToComment && !replyingToReply && (
+              <View style={styles.facebookCommentContainer}>
+                <View style={styles.facebookCommentInputWrapper}>
+                  <View style={styles.commentAvatar}>
+                    {profile?.avatarUrl ? (
+                      <Image
+                        source={{ uri: profile.avatarUrl }}
+                        style={styles.mainCommentAvatar}
+                      />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="account-circle"
+                        size={32}
+                        color="#94a3b8"
+                      />
+                    )}
+                  </View>
+                  <TextInput
+                    style={styles.facebookCommentInput}
+                    placeholder="Write a comment..."
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    multiline
+                    maxLength={1000}
                   />
-                )}
-              </TouchableOpacity>
-            </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.facebookCommentSubmitBtn,
+                      !newComment.trim() &&
+                        styles.facebookCommentSubmitBtnDisabled,
+                    ]}
+                    onPress={handleSubmitComment}
+                    disabled={isSubmitting || !newComment.trim()}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color="#0369a1" />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="send"
+                        size={20}
+                        color={newComment.trim() ? "#0369a1" : "#94a3b8"}
+                      />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.facebookCommentToolbar}>
+                  <TouchableOpacity style={styles.facebookCommentToolbarBtn}>
+                    <MaterialCommunityIcons
+                      name="image"
+                      size={20}
+                      color="#94a3b8"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.facebookCommentToolbarBtn}>
+                    <MaterialCommunityIcons
+                      name="emoticon-outline"
+                      size={20}
+                      color="#94a3b8"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.facebookCommentToolbarBtn}>
+                    <MaterialCommunityIcons
+                      name="attachment"
+                      size={20}
+                      color="#94a3b8"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             {/* Comments Section */}
             <View style={styles.commentsSection}>
@@ -377,29 +626,325 @@ export default function BlogDetail({ route }) {
                   {comments.map((comment) => (
                     <View key={comment.commentId} style={styles.commentItem}>
                       <View style={styles.commentHeader}>
-                        <Text style={styles.commentAuthor}>
-                          {comment.user?.fullName ||
-                            comment.userId?.fullName ||
-                            "Anonymous"}
-                        </Text>
+                        <View style={styles.commentAuthorContainer}>
+                          {comment.user?.avatarUrl ? (
+                            <Image
+                              source={{ uri: comment.user.avatarUrl }}
+                              style={styles.commentAuthorAvatar}
+                            />
+                          ) : (
+                            <MaterialCommunityIcons
+                              name="account-circle"
+                              size={24}
+                              color="#94a3b8"
+                            />
+                          )}
+                          <Text style={styles.commentAuthor}>
+                            {comment.user?.fullName ||
+                              comment.userId?.fullName ||
+                              "Anonymous"}
+                          </Text>
+                        </View>
                         <Text style={styles.commentTime}>
-                          {comment.createdAt
-                            ? (() => {
-                                const d = new Date(comment.createdAt);
-                                const pad = (n) =>
-                                  n.toString().padStart(2, "0");
-                                return `${pad(d.getDate())}/${pad(
-                                  d.getMonth() + 1
-                                )}/${d.getFullYear()} ${pad(
-                                  d.getHours()
-                                )}:${pad(d.getMinutes())}`;
-                              })()
-                            : ""}
+                          {formatDate(comment.createdAt)}
                         </Text>
                       </View>
                       <Text style={styles.commentContent}>
                         {comment.content}
                       </Text>
+
+                      <TouchableOpacity
+                        onPress={() => toggleReplyInput(comment.commentId)}
+                        style={styles.replyButton}
+                      >
+                        <MaterialCommunityIcons
+                          name={
+                            replyingToComment === comment.commentId
+                              ? "close"
+                              : "reply"
+                          }
+                          size={14}
+                          color="#0369a1"
+                        />
+                        <Text style={styles.replyButtonText}>
+                          {replyingToComment === comment.commentId
+                            ? "Hủy trả lời"
+                            : "Trả lời"}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {replyingToComment === comment.commentId && (
+                        <View style={styles.replyInputContainer}>
+                          <View style={styles.replyInputWrapper}>
+                            <View style={styles.replyAvatar}>
+                              {profile?.avatarUrl ? (
+                                <Image
+                                  source={{ uri: profile.avatarUrl }}
+                                  style={styles.replyAvatarImage}
+                                />
+                              ) : (
+                                <MaterialCommunityIcons
+                                  name="account-circle"
+                                  size={24}
+                                  color="#94a3b8"
+                                />
+                              )}
+                            </View>
+                            <TextInput
+                              style={styles.replyInput}
+                              placeholder="Viết trả lời..."
+                              value={newReply}
+                              onChangeText={setNewReply}
+                              multiline
+                              maxLength={500}
+                            />
+                          </View>
+                          <TouchableOpacity
+                            style={[
+                              styles.replySubmitBtn,
+                              (isSubmittingReply || !newReply.trim()) &&
+                                styles.replySubmitBtnDisabled,
+                            ]}
+                            onPress={handleSubmitReply}
+                            disabled={isSubmittingReply || !newReply.trim()}
+                          >
+                            {isSubmittingReply ? (
+                              <ActivityIndicator size="small" color="#0369a1" />
+                            ) : (
+                              <MaterialCommunityIcons
+                                name="send"
+                                size={18}
+                                color={newReply.trim() ? "#0369a1" : "#94a3b8"}
+                              />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Replies section */}
+                      {replies[comment.commentId] && (
+                        <View style={styles.repliesContainer}>
+                          <Text style={styles.repliesTitle}>
+                            Trả lời ({replies[comment.commentId].count})
+                          </Text>
+
+                          {replies[comment.commentId].loading ? (
+                            <ActivityIndicator size="small" color="#60a5fa" />
+                          ) : replies[comment.commentId].count > 0 ? (
+                            <>
+                              {/* Reply list */}
+                              {replies[comment.commentId].data.map((reply) => (
+                                <View
+                                  key={reply.commentId}
+                                  style={styles.replyItem}
+                                >
+                                  <View style={styles.replyHeader}>
+                                    <View style={styles.replyAuthorContainer}>
+                                      {reply.user?.avatarUrl ? (
+                                        <Image
+                                          source={{ uri: reply.user.avatarUrl }}
+                                          style={styles.replyAuthorAvatar}
+                                        />
+                                      ) : (
+                                        <MaterialCommunityIcons
+                                          name="account-circle"
+                                          size={20}
+                                          color="#94a3b8"
+                                        />
+                                      )}
+                                      <Text style={styles.replyAuthor}>
+                                        {reply.user?.fullName ||
+                                          reply.userId?.fullName ||
+                                          "Anonymous"}
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.replyTime}>
+                                      {formatDate(reply.createdAt)}
+                                    </Text>
+                                  </View>
+                                  <Text style={styles.replyContent}>
+                                    {reply.content}
+                                  </Text>
+
+                                  {/* Reply to reply button */}
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      toggleReplyInput(
+                                        comment.commentId,
+                                        reply.commentId
+                                      )
+                                    }
+                                    style={styles.replyToReplyButton}
+                                  >
+                                    <MaterialCommunityIcons
+                                      name={
+                                        replyingToReply === reply.commentId
+                                          ? "close"
+                                          : "reply"
+                                      }
+                                      size={12}
+                                      color="#0369a1"
+                                    />
+                                    <Text style={styles.replyButtonText}>
+                                      {replyingToReply === reply.commentId
+                                        ? "Hủy"
+                                        : "Trả lời"}
+                                    </Text>
+                                  </TouchableOpacity>
+
+                                  {/* Reply to reply input */}
+                                  {replyingToReply === reply.commentId && (
+                                    <View style={styles.replyInputContainer}>
+                                      <View style={styles.replyInputWrapper}>
+                                        <View style={styles.replyAvatar}>
+                                          {profile?.avatarUrl ? (
+                                            <Image
+                                              source={{
+                                                uri: profile.avatarUrl,
+                                              }}
+                                              style={styles.replyAvatarImage}
+                                            />
+                                          ) : (
+                                            <MaterialCommunityIcons
+                                              name="account-circle"
+                                              size={24}
+                                              color="#94a3b8"
+                                            />
+                                          )}
+                                        </View>
+                                        <TextInput
+                                          style={styles.replyInput}
+                                          placeholder={`Trả lời cho ${
+                                            reply.user?.fullName ||
+                                            reply.userId?.fullName ||
+                                            "Anonymous"
+                                          }...`}
+                                          value={newReply}
+                                          onChangeText={setNewReply}
+                                          multiline
+                                          maxLength={500}
+                                        />
+                                      </View>
+                                      <TouchableOpacity
+                                        style={[
+                                          styles.replySubmitBtn,
+                                          (isSubmittingReply ||
+                                            !newReply.trim()) &&
+                                            styles.replySubmitBtnDisabled,
+                                        ]}
+                                        onPress={handleSubmitReply}
+                                        disabled={
+                                          isSubmittingReply || !newReply.trim()
+                                        }
+                                      >
+                                        {isSubmittingReply ? (
+                                          <ActivityIndicator
+                                            size="small"
+                                            color="#0369a1"
+                                          />
+                                        ) : (
+                                          <MaterialCommunityIcons
+                                            name="send"
+                                            size={16}
+                                            color={
+                                              newReply.trim()
+                                                ? "#0369a1"
+                                                : "#94a3b8"
+                                            }
+                                          />
+                                        )}
+                                      </TouchableOpacity>
+                                    </View>
+                                  )}
+                                </View>
+                              ))}
+
+                              {/* Reply pagination */}
+                              <View style={styles.replyPaginationContainer}>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.replyPageBtn,
+                                    replies[comment.commentId].pagination.page >
+                                    1
+                                      ? styles.replyPageBtnActive
+                                      : styles.replyPageBtnDisabled,
+                                  ]}
+                                  disabled={
+                                    replies[comment.commentId].pagination
+                                      .page <= 1
+                                  }
+                                  onPress={() =>
+                                    handleReplyPageChange(
+                                      comment.commentId,
+                                      replies[comment.commentId].pagination
+                                        .page - 1
+                                    )
+                                  }
+                                >
+                                  <Text
+                                    style={
+                                      replies[comment.commentId].pagination
+                                        .page > 1
+                                        ? styles.replyPageBtnTextActive
+                                        : styles.replyPageBtnTextDisabled
+                                    }
+                                  >
+                                    Previous
+                                  </Text>
+                                </TouchableOpacity>
+
+                                <Text style={styles.replyPageText}>
+                                  Page{" "}
+                                  {replies[comment.commentId].pagination.page} /{" "}
+                                  {replies[comment.commentId].pagination
+                                    .totalPages || 1}
+                                </Text>
+
+                                <TouchableOpacity
+                                  style={[
+                                    styles.replyPageBtn,
+                                    replies[comment.commentId].pagination.page <
+                                    replies[comment.commentId].pagination
+                                      .totalPages
+                                      ? styles.replyPageBtnActive
+                                      : styles.replyPageBtnDisabled,
+                                  ]}
+                                  disabled={
+                                    replies[comment.commentId].pagination
+                                      .page >=
+                                    replies[comment.commentId].pagination
+                                      .totalPages
+                                  }
+                                  onPress={() =>
+                                    handleReplyPageChange(
+                                      comment.commentId,
+                                      replies[comment.commentId].pagination
+                                        .page + 1
+                                    )
+                                  }
+                                >
+                                  <Text
+                                    style={
+                                      replies[comment.commentId].pagination
+                                        .page <
+                                      replies[comment.commentId].pagination
+                                        .totalPages
+                                        ? styles.replyPageBtnTextActive
+                                        : styles.replyPageBtnTextDisabled
+                                    }
+                                  >
+                                    Next
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </>
+                          ) : (
+                            <Text style={styles.noReplies}>
+                              {replies[comment.commentId].note}
+                            </Text>
+                          )}
+                        </View>
+                      )}
                     </View>
                   ))}
                   {/* Pagination Controls */}
@@ -530,6 +1075,183 @@ export default function BlogDetail({ route }) {
 }
 
 const styles = StyleSheet.create({
+  // Reply styles
+  replyButton: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    marginBottom: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: "#e0f2fe",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  replyButtonText: {
+    fontSize: 12,
+    color: "#0369a1",
+    fontWeight: "500",
+  },
+  replyInputContainer: {
+    flexDirection: "column",
+    marginTop: 8,
+    marginBottom: 8,
+    marginHorizontal: 4,
+    gap: 5,
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  replyInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+  },
+  replyAvatar: {
+    marginRight: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  replyAvatarImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  replyInput: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: "#333",
+    maxHeight: 80,
+  },
+  replySubmitBtn: {
+    alignSelf: "flex-end",
+    padding: 6,
+    borderRadius: 16,
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  replySubmitBtnDisabled: {
+    backgroundColor: "#bfdbfe",
+  },
+  repliesContainer: {
+    marginTop: 8,
+    marginLeft: 16,
+    paddingLeft: 10,
+    paddingTop: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: "#93c5fd",
+    backgroundColor: "#f8fafc",
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  repliesTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0369a1",
+    marginBottom: 8,
+  },
+  replyItem: {
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 10,
+    marginRight: 4,
+  },
+  replyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  replyAuthorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  replyAuthorAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  replyAuthor: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#334155",
+  },
+  replyTime: {
+    fontSize: 11,
+    color: "#94a3b8",
+  },
+  replyContent: {
+    fontSize: 13,
+    color: "#334155",
+    lineHeight: 18,
+  },
+  replyToReplyButton: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    marginBottom: 2,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    backgroundColor: "#dbeafe",
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  noReplies: {
+    fontSize: 12,
+    fontStyle: "italic",
+    color: "#94a3b8",
+    marginBottom: 8,
+  },
+  replyPaginationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    gap: 8,
+  },
+  replyPageBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  replyPageBtnActive: {
+    backgroundColor: "#60a5fa",
+  },
+  replyPageBtnDisabled: {
+    backgroundColor: "#f1f5f9",
+  },
+  replyPageBtnTextActive: {
+    fontSize: 11,
+    color: "#fff",
+  },
+  replyPageBtnTextDisabled: {
+    fontSize: 11,
+    color: "#94a3b8",
+  },
+  replyPageText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#0369a1",
+  },
   container: { flex: 1, backgroundColor: "#f9fafb" },
   headerRow: {
     flexDirection: "row",
@@ -607,32 +1329,61 @@ const styles = StyleSheet.create({
     alignItems: "center",
     height: 400,
   },
-  commentInputContainer: {
-    padding: 16,
+  // Facebook style comment input
+  facebookCommentContainer: {
     backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: "#e2e8f0",
+    paddingTop: 8,
+    paddingBottom: 8,
+    width: "100%",
+    position: "relative",
+  },
+  facebookCommentInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    paddingHorizontal: 12,
   },
-  commentInput: {
+  commentAvatar: {
+    marginRight: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mainCommentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  facebookCommentInput: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#f1f5f9",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     fontSize: 14,
     color: "#333",
-    maxHeight: 100,
+    maxHeight: 80,
   },
-  commentSubmitBtn: {
-    backgroundColor: "#ef4444",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 70,
+  facebookCommentSubmitBtn: {
+    padding: 8,
+    justifyContent: "center",
     alignItems: "center",
+  },
+  facebookCommentSubmitBtnDisabled: {
+    opacity: 0.5,
+  },
+  facebookCommentToolbar: {
+    flexDirection: "row",
+    paddingHorizontal: 54,
+    marginTop: 4,
+  },
+  facebookCommentToolbarBtn: {
+    padding: 6,
+    marginRight: 16,
   },
   commentSubmitBtnDisabled: {
     backgroundColor: "#fca5a5",
@@ -646,24 +1397,46 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "#fff",
     marginTop: 12,
+    borderTopWidth: 6,
+    borderTopColor: "#f1f5f9",
   },
   commentsSectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#222",
     marginBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
   commentItem: {
     marginBottom: 16,
     padding: 12,
     backgroundColor: "#f8fafc",
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   commentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+  },
+  commentAuthorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  commentAuthorAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   commentAuthor: {
     fontWeight: "bold",
