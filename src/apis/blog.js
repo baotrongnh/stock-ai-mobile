@@ -9,12 +9,12 @@ const getAllBlogs = async () => {
   }
 };
 
-const getLatestBlogs = async () => {
+const getLatestBlogs = async (page, pageSize) => {
   try {
     return await axiosClient.get("posts", {
       params: {
-        page: 1,
-        pageSize: 10,
+        page,
+        pageSize,
       },
     });
   } catch (error) {
