@@ -103,7 +103,11 @@ export default function BlogDetail({ route }) {
     setIsLoadingComments(true);
     const data = await getCommnentsByPostId(blogId, page, commentsPageSize);
     setComments(data.comments);
-    setCommentsCount(data.count);
+    setCommentsCount(
+      data.pagination && data.pagination.total
+        ? data.pagination.total
+        : data.count
+    );
     setCommentsNote(data.note);
     setCommentsPagination(
       data.pagination || {
@@ -116,12 +120,10 @@ export default function BlogDetail({ route }) {
     setIsLoadingComments(false);
   };
 
-  // Chỉ fetch blog detail khi blogId đổi
   useEffect(() => {
     fetchBlogDetail();
   }, [blogId]);
 
-  // Chỉ fetch comments khi commentsPage hoặc blogId đổi
   useEffect(() => {
     fetchComments(commentsPage);
   }, [commentsPage, blogId]);
@@ -135,7 +137,6 @@ export default function BlogDetail({ route }) {
     try {
       setIsSubmitting(true);
 
-      // Get user token
       const token = await AsyncStorage.getItem("token");
       if (!token) {
         Alert.alert("Error", "Please login to comment");
