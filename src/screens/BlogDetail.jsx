@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { getBlogDetail } from "../apis/blog";
 import { reportBlogOrComment } from "../apis/report";
-import { getAllComments, createComment } from "../apis/comment";
+import { getCommnentsByPostId, createComment } from "../apis/comment";
 import { saveFavoritePost, votePost } from "../apis/vote";
 import { formatText } from "../utils/blog";
 
@@ -24,7 +24,17 @@ export default function BlogDetail({ route }) {
   const [isFavoriting, setIsFavoriting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [comments, setComments] = useState([]);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [commentsNote, setCommentsNote] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [commentsPageSize] = useState(10);
+  const [commentsPagination, setCommentsPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 1,
+  });
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -36,11 +46,28 @@ export default function BlogDetail({ route }) {
   const [voteLoading, setVoteLoading] = useState(false);
   // Handle upvote/downvote
   const handleVote = async (voteType) => {
-    if (!blogId) return;
+    if (!blogId || !blog) return;
     setVoteLoading(true);
     try {
       await votePost(blogId, voteType);
-      await fetchBlogDetail(); // Always refetch to get latest state from server
+      // Cập nhật state blog trực tiếp để phản hồi UI ngay
+      setBlog((prev) => {
+        if (!prev) return prev;
+        let upvoteCount = prev.upvoteCount || 0;
+        let downvoteCount = prev.downvoteCount || 0;
+        // Nếu user đã vote trước đó, trừ đi vote cũ
+        if (prev.userVoteType === "UPVOTE") upvoteCount--;
+        if (prev.userVoteType === "DOWNVOTE") downvoteCount--;
+        // Cộng vote mới
+        if (voteType === "UPVOTE") upvoteCount++;
+        if (voteType === "DOWNVOTE") downvoteCount++;
+        return {
+          ...prev,
+          upvoteCount,
+          downvoteCount,
+          userVoteType: voteType,
+        };
+      });
     } catch (err) {
       Alert.alert("Error", "Failed to vote!");
     } finally {
@@ -72,20 +99,34 @@ export default function BlogDetail({ route }) {
     setIsLoading(false);
   };
 
-  const fetchComments = async () => {
+  const fetchComments = async (page = 1) => {
     setIsLoadingComments(true);
-    // console.log(blogId);
-    const data = await getAllComments(blogId);
-    if (!data.error) {
-      setComments(data);
-    }
+    const data = await getCommnentsByPostId(blogId, page, commentsPageSize);
+    setComments(data.comments);
+    setCommentsCount(
+      data.pagination && data.pagination.total
+        ? data.pagination.total
+        : data.count
+    );
+    setCommentsNote(data.note);
+    setCommentsPagination(
+      data.pagination || {
+        page,
+        pageSize: commentsPageSize,
+        total: 0,
+        totalPages: 1,
+      }
+    );
     setIsLoadingComments(false);
   };
 
   useEffect(() => {
     fetchBlogDetail();
-    fetchComments();
   }, [blogId]);
+
+  useEffect(() => {
+    fetchComments(commentsPage);
+  }, [commentsPage, blogId]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) {
@@ -96,7 +137,6 @@ export default function BlogDetail({ route }) {
     try {
       setIsSubmitting(true);
 
-      // Get user token
       const token = await AsyncStorage.getItem("token");
       if (!token) {
         Alert.alert("Error", "Please login to comment");
@@ -104,13 +144,10 @@ export default function BlogDetail({ route }) {
         return;
       }
 
-      const commentData = {
+      const response = await createComment({
         postId: blogId,
         content: newComment.trim(),
-        parentCommentId: 0,
-      };
-
-      const response = await createComment(commentData);
+      });
 
       if (!response.error) {
         setNewComment("");
@@ -197,10 +234,10 @@ export default function BlogDetail({ route }) {
                 {blog?.session === 1
                   ? "sáng"
                   : blog?.session === 2
-                    ? "chiều"
-                    : blog?.session === 3
-                      ? "ngày"
-                      : ""}
+                  ? "chiều"
+                  : blog?.session === 3
+                  ? "ngày"
+                  : ""}
               </Text>
             </View>
 
@@ -214,14 +251,14 @@ export default function BlogDetail({ route }) {
               <Text style={styles.metaText}>
                 {blog?.createdAt
                   ? (() => {
-                    const d = new Date(blog.createdAt);
-                    const pad = (n) => n.toString().padStart(2, "0");
-                    return `${pad(d.getDate())}/${pad(
-                      d.getMonth() + 1
-                    )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
-                      d.getMinutes()
-                    )}`;
-                  })()
+                      const d = new Date(blog.createdAt);
+                      const pad = (n) => n.toString().padStart(2, "0");
+                      return `${pad(d.getDate())}/${pad(
+                        d.getMonth() + 1
+                      )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
+                        d.getMinutes()
+                      )}`;
+                    })()
                   : ""}
               </Text>
               <Text style={styles.metaDot}>·</Text>
@@ -309,7 +346,7 @@ export default function BlogDetail({ route }) {
                 style={[
                   styles.commentSubmitBtn,
                   (isSubmitting || !newComment.trim()) &&
-                  styles.commentSubmitBtnDisabled,
+                    styles.commentSubmitBtnDisabled,
                 ]}
                 onPress={handleSubmitComment}
                 disabled={isSubmitting || !newComment.trim()}
@@ -330,44 +367,113 @@ export default function BlogDetail({ route }) {
             {/* Comments Section */}
             <View style={styles.commentsSection}>
               <Text style={styles.commentsSectionTitle}>
-                Comments ({comments.length})
+                Comments ({commentsCount})
               </Text>
 
               {isLoadingComments ? (
                 <ActivityIndicator size="small" color="#ef4444" />
-              ) : comments.length > 0 ? (
-                comments.map((comment) => (
-                  <View
-                    key={comment._id || comment.id}
-                    style={styles.commentItem}
-                  >
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthor}>
-                        {comment.user?.fullName ||
-                          comment.userId?.fullName ||
-                          "Anonymous"}
-                      </Text>
-                      <Text style={styles.commentTime}>
-                        {comment.createdAt
-                          ? (() => {
-                            const d = new Date(comment.createdAt);
-                            const pad = (n) => n.toString().padStart(2, "0");
-                            return `${pad(d.getDate())}/${pad(
-                              d.getMonth() + 1
-                            )}/${d.getFullYear()} ${pad(d.getHours())}:${pad(
-                              d.getMinutes()
-                            )}`;
-                          })()
-                          : ""}
+              ) : commentsCount > 0 ? (
+                <>
+                  {comments.map((comment) => (
+                    <View key={comment.commentId} style={styles.commentItem}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentAuthor}>
+                          {comment.user?.fullName ||
+                            comment.userId?.fullName ||
+                            "Anonymous"}
+                        </Text>
+                        <Text style={styles.commentTime}>
+                          {comment.createdAt
+                            ? (() => {
+                                const d = new Date(comment.createdAt);
+                                const pad = (n) =>
+                                  n.toString().padStart(2, "0");
+                                return `${pad(d.getDate())}/${pad(
+                                  d.getMonth() + 1
+                                )}/${d.getFullYear()} ${pad(
+                                  d.getHours()
+                                )}:${pad(d.getMinutes())}`;
+                              })()
+                            : ""}
+                        </Text>
+                      </View>
+                      <Text style={styles.commentContent}>
+                        {comment.content}
                       </Text>
                     </View>
-                    <Text style={styles.commentContent}>{comment.content}</Text>
+                  ))}
+                  {/* Pagination Controls */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      marginTop: 10,
+                      gap: 10,
+                    }}
+                  >
+                    <TouchableOpacity
+                      style={{
+                        padding: 8,
+                        backgroundColor:
+                          commentsPagination.page > 1 ? "#ef4444" : "#f3f4f6",
+                        borderRadius: 6,
+                      }}
+                      disabled={commentsPagination.page <= 1}
+                      onPress={() =>
+                        setCommentsPage(commentsPagination.page - 1)
+                      }
+                    >
+                      <Text
+                        style={{
+                          color: commentsPagination.page > 1 ? "#fff" : "#888",
+                        }}
+                      >
+                        Previous
+                      </Text>
+                    </TouchableOpacity>
+                    <Text
+                      style={{
+                        alignSelf: "center",
+                        color: "#222",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Page {commentsPagination.page} /{" "}
+                      {commentsPagination.totalPages || 1}
+                    </Text>
+                    <TouchableOpacity
+                      style={{
+                        padding: 8,
+                        backgroundColor:
+                          commentsPagination.page <
+                          commentsPagination.totalPages
+                            ? "#ef4444"
+                            : "#f3f4f6",
+                        borderRadius: 6,
+                      }}
+                      disabled={
+                        commentsPagination.page >= commentsPagination.totalPages
+                      }
+                      onPress={() =>
+                        setCommentsPage(commentsPagination.page + 1)
+                      }
+                    >
+                      <Text
+                        style={{
+                          color:
+                            commentsPagination.page <
+                            commentsPagination.totalPages
+                              ? "#fff"
+                              : "#888",
+                        }}
+                      >
+                        Next
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                ))
+                </>
               ) : (
-                <Text style={styles.noComments}>
-                  No comments yet. Be the first to comment!
-                </Text>
+                <Text style={styles.noComments}>{commentsNote}</Text>
               )}
             </View>
           </>

@@ -19,8 +19,7 @@ export default function CreatePost() {
   const navigation = useNavigation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [level, setLevel] = useState("MARKET"); // MARKET or STOCK
-  const [session, setSession] = useState(1); // 1: morning, 2: afternoon, 3: full day
+  const [stockId, setStockId] = useState(1);
   const [image, setImage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,7 +44,15 @@ export default function CreatePost() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        // Lấy tên file từ uri
+        let fileName = asset.uri.split("/").pop() || `image_${Date.now()}.jpg`;
+        // Lấy type
+        let fileType = asset.type || "image";
+        if (asset.mimeType) fileType = asset.mimeType;
+        else if (fileName.includes("."))
+          fileType = `image/${fileName.split(".").pop()}`;
+        setImage({ uri: asset.uri, name: fileName, type: fileType });
       }
     } catch (error) {
       Alert.alert("Error", "Failed to pick image");
@@ -64,18 +71,20 @@ export default function CreatePost() {
       return;
     }
 
+    if (!stockId || isNaN(Number(stockId))) {
+      Alert.alert("Error", "Please enter a valid stockId (number)");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
-      const postData = {
-        title: title.trim(),
-        content: content.trim(),
-        level,
-        session,
-        image,
-      };
-
-      const response = await createPost(postData);
+      const response = await createPost(
+        title.trim(),
+        content.trim(),
+        Number(stockId),
+        image // có thể là null hoặc object { uri, name, type }
+      );
 
       if (!response.error) {
         Alert.alert("Success", "Post created successfully");
@@ -91,7 +100,7 @@ export default function CreatePost() {
   };
 
   return (
-    <SafeAreaView style={{flex: 1}}>
+    <SafeAreaView style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -103,7 +112,7 @@ export default function CreatePost() {
             style={[
               styles.submitButton,
               (isSubmitting || !title.trim() || !content.trim()) &&
-              styles.submitButtonDisabled,
+                styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
             disabled={isSubmitting || !title.trim() || !content.trim()}
@@ -118,98 +127,17 @@ export default function CreatePost() {
 
         {/* Form */}
         <View style={styles.form}>
-          {/* Level Selection */}
+          {/* StockId Input */}
           <View style={styles.radioGroup}>
-            <Text style={styles.label}>Level:</Text>
-            <View style={styles.radioOptions}>
-              <TouchableOpacity
-                style={[
-                  styles.radioOption,
-                  level === "MARKET" && styles.radioOptionSelected,
-                ]}
-                onPress={() => setLevel("MARKET")}
-              >
-                <Text
-                  style={[
-                    styles.radioText,
-                    level === "MARKET" && styles.radioTextSelected,
-                  ]}
-                >
-                  Market Level
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.radioOption,
-                  level === "STOCK" && styles.radioOptionSelected,
-                ]}
-                onPress={() => setLevel("STOCK")}
-              >
-                <Text
-                  style={[
-                    styles.radioText,
-                    level === "STOCK" && styles.radioTextSelected,
-                  ]}
-                >
-                  Stock Level
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Session Selection */}
-          <View style={styles.radioGroup}>
-            <Text style={styles.label}>Session:</Text>
-            <View style={styles.radioOptions}>
-              <TouchableOpacity
-                style={[
-                  styles.radioOption,
-                  session === 1 && styles.radioOptionSelected,
-                ]}
-                onPress={() => setSession(1)}
-              >
-                <Text
-                  style={[
-                    styles.radioText,
-                    session === 1 && styles.radioTextSelected,
-                  ]}
-                >
-                  Morning
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.radioOption,
-                  session === 2 && styles.radioOptionSelected,
-                ]}
-                onPress={() => setSession(2)}
-              >
-                <Text
-                  style={[
-                    styles.radioText,
-                    session === 2 && styles.radioTextSelected,
-                  ]}
-                >
-                  Afternoon
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.radioOption,
-                  session === 3 && styles.radioOptionSelected,
-                ]}
-                onPress={() => setSession(3)}
-              >
-                <Text
-                  style={[
-                    styles.radioText,
-                    session === 3 && styles.radioTextSelected,
-                  ]}
-                >
-                  Full Day
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.label}>Stock ID:</Text>
+            <TextInput
+              style={styles.titleInput}
+              placeholder="Enter stockId (number)"
+              value={stockId.toString()}
+              onChangeText={(v) => setStockId(v.replace(/[^0-9]/g, ""))}
+              keyboardType="numeric"
+              maxLength={10}
+            />
           </View>
 
           {/* Title Input */}
@@ -232,7 +160,10 @@ export default function CreatePost() {
           />
 
           {/* Image Upload */}
-          <TouchableOpacity style={styles.imageUploadButton} onPress={pickImage}>
+          <TouchableOpacity
+            style={styles.imageUploadButton}
+            onPress={pickImage}
+          >
             <Text style={styles.imageUploadText}>
               {image ? "Change Image" : "Add Image"}
             </Text>
@@ -240,7 +171,7 @@ export default function CreatePost() {
 
           {image && (
             <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: image }} style={styles.imagePreview} />
+              <Image source={{ uri: image.uri }} style={styles.imagePreview} />
               <TouchableOpacity
                 style={styles.removeImageButton}
                 onPress={() => setImage(null)}
