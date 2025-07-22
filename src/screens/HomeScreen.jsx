@@ -2,15 +2,30 @@ import React, { use, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNotification } from '../context/NotificationContext';
+import axios from 'axios';
+import { sendPushToken } from '../apis/notification';
 
 export default function HomeScreen() {
   const { expoPushToken, notification, error } = useNotification();
   if (error) return <></>
+  const handleNotification = async () => {
+    try {
+      await sendPushToken(expoPushToken);
+    } catch (error) {
+      console.error("Error handling notification:", error);
+    }
+  }
 
   useEffect(() => {
     console.log(JSON.stringify(notification, null, 2));
     console.log("Expo Push Token: ", expoPushToken);
   }, [notification, expoPushToken]);
+
+  useEffect(() => {
+    if (expoPushToken) {  
+      handleNotification();
+    }
+  }, []);
 
   return (
     <View style={styles.container}>
