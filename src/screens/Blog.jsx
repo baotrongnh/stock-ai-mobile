@@ -31,39 +31,45 @@ export default function Blog() {
     session: "",
   });
 
-  const fetchLatestBlogs = async (pageNum = 1) => {
-    try {
-      const data = await getLatestBlogs(pageNum, pageSize);
-      setLatestBlogs(data.data.data);
-      if (data.data.pagination) {
-        setPage(data.data.pagination.page);
-        setTotalPages(data.data.pagination.totalPages);
+  const fetchLatestBlogs = useCallback(
+    async (pageNum = 1) => {
+      try {
+        const data = await getLatestBlogs(pageNum, pageSize);
+        setLatestBlogs(data.data.data);
+        if (data.data.pagination) {
+          setPage(data.data.pagination.page);
+          setTotalPages(data.data.pagination.totalPages);
+        }
+      } catch (error) {
+        setLatestBlogs([]);
+        setPage(1);
+        setTotalPages(1);
       }
-    } catch (error) {
-      setLatestBlogs([]);
-      setPage(1);
-      setTotalPages(1);
-    }
-  };
+    },
+    [pageSize]
+  );
 
-  const fetchTrendingBlogs = async () => {
-    const data = await getTrendingBlogs();
-    setTrendingBlogs(data.data);
-  };
+  const fetchTrendingBlogs = useCallback(async () => {
+    try {
+      const data = await getTrendingBlogs();
+      setTrendingBlogs(data.data);
+    } catch (error) {
+      console.error("Error fetching trending blogs:", error);
+      setTrendingBlogs([]);
+    }
+  }, []);
 
   const applyFilters = (autoApply = false) => {
     setIsFiltering(true);
 
     let filtered = [...latestBlogs];
 
-    // Filter by search term (stock symbol)
     if (searchTerm.trim()) {
       filtered = filtered.filter((blog) =>
         blog.stock?.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filter by stock code (symbol) from filter panel
     if (filters.stockCode) {
       filtered = filtered.filter((blog) =>
         blog.stock?.symbol
@@ -72,19 +78,18 @@ export default function Blog() {
       );
     }
 
-    // Filter by sentiment
+
     if (filters.sentiment) {
       filtered = filtered.filter(
         (blog) => blog.sentiment === filters.sentiment
       );
     }
 
-    // Filter by level
+
     if (filters.level) {
       filtered = filtered.filter((blog) => blog.level === filters.level);
     }
 
-    // Filter by session (1: sáng, 2: chiều, 3: ngày)
     if (filters.session) {
       let sessionValue;
       if (filters.session === "Phiên sáng") sessionValue = 1;
@@ -120,21 +125,25 @@ export default function Blog() {
       ? filteredBlogs
       : latestBlogs;
 
+  // Only fetch on initial component mount
   useEffect(() => {
     fetchLatestBlogs(page);
     fetchTrendingBlogs();
-  }, [page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Clear filters when screen is focused (user comes back to this tab)
   useFocusEffect(
     useCallback(() => {
-      // Clear filters when tab is focused
+      fetchLatestBlogs(page);
+      fetchTrendingBlogs();
+
+
       setSearchTerm("");
       setFilters({ stockCode: "", sentiment: "", level: "", session: "" });
       setFilteredBlogs([]);
       setIsFiltering(false);
       setShowFilter(false);
-    }, [])
+    }, [page, fetchLatestBlogs, fetchTrendingBlogs])
   );
 
   // Auto-apply search when search term changes
@@ -151,12 +160,21 @@ export default function Blog() {
   }, [searchTerm, filters, latestBlogs]);
 
   // Hàm chuyển trang
-  const handlePrevPage = () => {
-    if (page > 1) setPage(page - 1);
-  };
-  const handleNextPage = () => {
-    if (page < totalPages) setPage(page + 1);
-  };
+  const handlePrevPage = useCallback(() => {
+    if (page > 1) {
+      const newPage = page - 1;
+      setPage(newPage);
+      fetchLatestBlogs(newPage);
+    }
+  }, [page, fetchLatestBlogs]);
+
+  const handleNextPage = useCallback(() => {
+    if (page < totalPages) {
+      const newPage = page + 1;
+      setPage(newPage);
+      fetchLatestBlogs(newPage);
+    }
+  }, [page, totalPages, fetchLatestBlogs]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
@@ -394,8 +412,59 @@ export default function Blog() {
                     {blog.content}
                   </Text>
                   <View style={styles.cardFooter}>
-                    <Text style={styles.footerText}>👁 {blog.viewCount}</Text>
-                    <Text style={styles.footerText}>👍 {blog.likeCount}</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <MaterialIcons
+                        name={
+                          blog.userVoteType === "UPVOTE"
+                            ? "thumb-up"
+                            : "thumb-up-off-alt"
+                        }
+                        size={18}
+                        color={
+                          blog.userVoteType === "UPVOTE" ? "#22c55e" : "#888"
+                        }
+                        style={{ marginRight: 2 }}
+                      />
+                      <Text
+                        style={{
+                          color:
+                            blog.userVoteType === "UPVOTE" ? "#22c55e" : "#888",
+                          fontWeight: "bold",
+                          marginRight: 8,
+                        }}
+                      >
+                        {blog.upvoteCount || 0}
+                      </Text>
+                      <MaterialIcons
+                        name={
+                          blog.userVoteType === "DOWNVOTE"
+                            ? "thumb-down"
+                            : "thumb-down-off-alt"
+                        }
+                        size={18}
+                        color={
+                          blog.userVoteType === "DOWNVOTE" ? "#ef4444" : "#888"
+                        }
+                        style={{ marginRight: 2 }}
+                      />
+                      <Text
+                        style={{
+                          color:
+                            blog.userVoteType === "DOWNVOTE"
+                              ? "#ef4444"
+                              : "#888",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {blog.downvoteCount || 0}
+                      </Text>
+                    </View>
                     <Text style={styles.readMore}>Read More</Text>
                   </View>
                 </View>
@@ -485,8 +554,63 @@ export default function Blog() {
                       {blog.content}
                     </Text>
                     <View style={styles.cardFooter}>
-                      <Text style={styles.footerText}>👍 {blog.upvoteCount}</Text>
-                      <Text style={styles.footerText}> {blog.downvoteCount}</Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <MaterialIcons
+                          name={
+                            blog.userVoteType === "UPVOTE"
+                              ? "thumb-up"
+                              : "thumb-up-off-alt"
+                          }
+                          size={18}
+                          color={
+                            blog.userVoteType === "UPVOTE" ? "#22c55e" : "#888"
+                          }
+                          style={{ marginRight: 2 }}
+                        />
+                        <Text
+                          style={{
+                            color:
+                              blog.userVoteType === "UPVOTE"
+                                ? "#22c55e"
+                                : "#888",
+                            fontWeight: "bold",
+                            marginRight: 8,
+                          }}
+                        >
+                          {blog.upvoteCount || 0}
+                        </Text>
+                        <MaterialIcons
+                          name={
+                            blog.userVoteType === "DOWNVOTE"
+                              ? "thumb-down"
+                              : "thumb-down-off-alt"
+                          }
+                          size={18}
+                          color={
+                            blog.userVoteType === "DOWNVOTE"
+                              ? "#ef4444"
+                              : "#888"
+                          }
+                          style={{ marginRight: 2 }}
+                        />
+                        <Text
+                          style={{
+                            color:
+                              blog.userVoteType === "DOWNVOTE"
+                                ? "#ef4444"
+                                : "#888",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {blog.downvoteCount || 0}
+                        </Text>
+                      </View>
                       <Text style={styles.readMore}>Read More</Text>
                     </View>
                   </View>

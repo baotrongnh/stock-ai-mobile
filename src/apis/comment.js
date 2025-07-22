@@ -37,6 +37,7 @@ const getCommnentsByPostId = async (
     };
   }
 };
+
 const createComment = async ({ postId, content }) => {
   try {
     const res = await axiosClient.post("comments", { postId, content });
@@ -47,4 +48,53 @@ const createComment = async ({ postId, content }) => {
   }
 };
 
-export { getCommnentsByPostId, createComment };
+const createReplyComment = async ({ commentId, content }) => {
+  try {
+    const res = await axiosClient.post(`comments/${commentId}/reply`, {
+      content,
+    });
+    return res.data;
+  } catch (error) {
+    console.error("Error in createReplyComment:", error);
+    return { error: true, message: "Không thể gửi reply." };
+  }
+};
+
+const getRepliesByCommentId = async (commentId, page = 1, pageSize = 10) => {
+  try {
+    const res = await axiosClient.get(
+      `comments/${commentId}/replies?page=${page}&pageSize=${pageSize}`
+    );
+    if (res && res.data && Array.isArray(res.data.data)) {
+      const replies = res.data.data;
+      return {
+        count: replies.length,
+        replies,
+        pagination: res.data.pagination,
+        note: replies.length === 0 ? "Không có reply nào cho comment này." : "",
+      };
+    } else {
+      return {
+        count: 0,
+        replies: [],
+        pagination: { page, pageSize, total: 0, totalPages: 0 },
+        note: "Không có reply nào cho comment này.",
+      };
+    }
+  } catch (error) {
+    console.error("Error in getRepliesByCommentId:", error);
+    return {
+      count: 0,
+      replies: [],
+      pagination: { page, pageSize, total: 0, totalPages: 0 },
+      note: "Không có reply nào cho comment này.",
+    };
+  }
+};
+
+export {
+  getCommnentsByPostId,
+  createComment,
+  createReplyComment,
+  getRepliesByCommentId,
+};
