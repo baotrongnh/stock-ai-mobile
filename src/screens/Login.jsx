@@ -18,7 +18,7 @@ export default function Login({ navigation }) {
                     await AsyncStorage.setItem('token', data.access_token)
 
                     const token = await AsyncStorage.getItem('token')
-                 Alert.alert('Token đã lưu:', token || 'Không có token')
+                //  Alert.alert('Token đã lưu:', token || 'Không có token')
                  console.log(token)
                     navigation.navigate('Root')
                }
