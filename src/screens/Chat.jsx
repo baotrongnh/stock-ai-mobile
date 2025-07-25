@@ -1,7 +1,8 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRef, useState, useEffect } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView, Alert } from "react-native";
-import { sendChatMessage, testDeepSeekConnection } from "../apis/deepseek";
+import { sendChatMessage } from "../apis/deepseek";
+import { formatText } from "../utils/blog";
 
 const SUGGESTIONS = [
   "Phân tích cổ phiếu VNM hiện tại",
@@ -25,20 +26,6 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef();
 
-  // Test kết nối khi component mount
-  useEffect(() => {
-    const checkConnection = async () => {
-      const result = await testDeepSeekConnection();
-      if (!result.success) {
-        Alert.alert(
-          "Cảnh báo API",
-          "Không thể kết nối Gemini API. Vui lòng kiểm tra API key trong file deepseek.js",
-          [{ text: "OK" }]
-        );
-      }
-    };
-    checkConnection();
-  }, []);
 
   const handleSend = async (customText) => {
     const text = typeof customText === "string" ? customText : input.trim();
@@ -51,12 +38,10 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      // Gửi tin nhắn đến DeepSeek API
       const response = await sendChatMessage(updatedMessages);
-
       const botMsg = {
         role: "bot",
-        text: response.success ? response.message : "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau.",
+        text: response ? response.answer : "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau.",
       };
 
       setMessages(prev => [...prev, botMsg]);
@@ -105,7 +90,7 @@ export default function Chat() {
               )}
               <View style={[styles.bubble, msg.role === "user" ? styles.userBubble : styles.botBubble]}>
                 <Text style={[styles.bubbleText, msg.role === "user" ? styles.userBubbleText : styles.botBubbleText]}>
-                  {msg.text}
+                  {formatText(msg.text)}
                 </Text>
               </View>
               {msg.role === "user" && (
