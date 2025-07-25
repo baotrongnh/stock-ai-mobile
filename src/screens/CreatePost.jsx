@@ -127,19 +127,6 @@ export default function CreatePost() {
 
         {/* Form */}
         <View style={styles.form}>
-          {/* StockId Input */}
-          <View style={styles.radioGroup}>
-            <Text style={styles.label}>Stock ID:</Text>
-            <TextInput
-              style={styles.titleInput}
-              placeholder="Enter stockId (number)"
-              value={stockId.toString()}
-              onChangeText={(v) => setStockId(v.replace(/[^0-9]/g, ""))}
-              keyboardType="numeric"
-              maxLength={10}
-            />
-          </View>
-
           {/* Title Input */}
           <TextInput
             style={styles.titleInput}

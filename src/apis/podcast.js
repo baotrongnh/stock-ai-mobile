@@ -1,13 +1,5 @@
 import axiosClient from "./axiosClient";
 
-/**
- * Lấy tất cả podcast đã được xuất bản (public)
- * @param {number} page - Trang hiện tại
- * @param {number} pageSize - Số lượng mỗi trang
- * @param {boolean} [featured] - Lọc theo featured
- * @param {string[]} [tags] - Lọc theo tags
- * @returns {Promise<Object>}
- */
 export const getPublishedPodcasts = async (
   page,
   pageSize,
@@ -37,12 +29,6 @@ export const getPublishedPodcasts = async (
   }
 };
 
-/**
- * Lấy podcast được đề xuất (featured)
- * @param {number} page - Trang hiện tại
- * @param {number} pageSize - Số lượng mỗi trang
- * @returns {Promise<Object>}
- */
 export const getFeaturedPodcasts = async (page = 1, pageSize = 5) => {
   try {
     return await axiosClient.get(`/public/podcasts/featured`, {
@@ -57,11 +43,7 @@ export const getFeaturedPodcasts = async (page = 1, pageSize = 5) => {
   }
 };
 
-/**
- * Lấy podcast theo ID
- * @param {number} id - ID của podcast
- * @returns {Promise<Object>}
- */
+
 export const getPodcastById = async (id) => {
   try {
     return await axiosClient.get(`/public/podcasts/${id}`);
@@ -71,11 +53,6 @@ export const getPodcastById = async (id) => {
   }
 };
 
-/**
- * Tăng số lượt nghe của podcast
- * @param {number} id - ID của podcast
- * @returns {Promise<Object>}
- */
 export const incrementPlayCount = async (id) => {
   try {
     return await axiosClient.post(`/public/podcasts/${id}/play`);
@@ -85,11 +62,7 @@ export const incrementPlayCount = async (id) => {
   }
 };
 
-/**
- * Format thời lượng từ giây sang dạng MM:SS hoặc HH:MM:SS
- * @param {number|null} seconds - Thời lượng tính bằng giây
- * @returns {string} - Định dạng thời gian dễ đọc
- */
+
 export const formatDuration = (seconds) => {
   if (!seconds) return "00:00";
 
@@ -108,11 +81,7 @@ export const formatDuration = (seconds) => {
     .padStart(2, "0")}`;
 };
 
-/**
- * Format kích thước file
- * @param {number|null} bytes - Kích thước file tính bằng byte
- * @returns {string} - Định dạng kích thước dễ đọc
- */
+
 export const formatFileSize = (bytes) => {
   if (!bytes) return "Unknown size";
 
@@ -128,11 +97,6 @@ export const formatFileSize = (bytes) => {
   return `${size.toFixed(1)} ${units[unitIndex]}`;
 };
 
-/**
- * Format thời gian tương đối (ví dụ: "3 giờ trước", "2 ngày trước")
- * @param {string} dateString - Chuỗi datetime (ISO)
- * @returns {string} - Định dạng thời gian tương đối
- */
 export const formatRelativeTime = (dateString) => {
   if (!dateString) return "Unknown date";
 

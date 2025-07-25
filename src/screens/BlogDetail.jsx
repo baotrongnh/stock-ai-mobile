@@ -49,13 +49,11 @@ export default function BlogDetail({ route }) {
     total: 0,
     totalPages: 1,
   });
-
-  // Reply state variables
-  const [replies, setReplies] = useState({}); // Store replies by commentId
-  const [replyingToComment, setReplyingToComment] = useState(null); // Track which comment user is replying to
-  const [replyingToReply, setReplyingToReply] = useState(null); // Track which reply user is replying to
-  const [replyParentId, setReplyParentId] = useState(null); // Store parent comment ID when replying to a reply
-  const [newReply, setNewReply] = useState(""); // Content of new reply
+  const [replies, setReplies] = useState({}); 
+  const [replyingToComment, setReplyingToComment] = useState(null); 
+  const [replyingToReply, setReplyingToReply] = useState(null); 
+  const [replyParentId, setReplyParentId] = useState(null);
+  const [newReply, setNewReply] = useState(""); 
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,21 +65,21 @@ export default function BlogDetail({ route }) {
   const [blog, setBlog] = useState(null);
   const [voteLoading, setVoteLoading] = useState(false);
   const [profile, setProfile] = useState(null);
-  // Handle upvote/downvote
+
   const handleVote = async (voteType) => {
     if (!blogId || !blog) return;
     setVoteLoading(true);
     try {
       await votePost(blogId, voteType);
-      // Cập nhật state blog trực tiếp để phản hồi UI ngay
+
       setBlog((prev) => {
         if (!prev) return prev;
         let upvoteCount = prev.upvoteCount || 0;
         let downvoteCount = prev.downvoteCount || 0;
-        // Nếu user đã vote trước đó, trừ đi vote cũ
+
         if (prev.userVoteType === "UPVOTE") upvoteCount--;
         if (prev.userVoteType === "DOWNVOTE") downvoteCount--;
-        // Cộng vote mới
+
         if (voteType === "UPVOTE") upvoteCount++;
         if (voteType === "DOWNVOTE") downvoteCount++;
         return {
@@ -143,7 +141,7 @@ export default function BlogDetail({ route }) {
     setIsLoadingComments(false);
   };
 
-  // Function to load replies for a comment
+
   const fetchReplies = async (commentId, page = 1, pageSize = 5) => {
     try {
       const response = await getRepliesByCommentId(commentId, page, pageSize);
@@ -178,7 +176,6 @@ export default function BlogDetail({ route }) {
     }
   };
 
-  // Function to handle reply page change
   const handleReplyPageChange = (commentId, page) => {
     setReplies((prev) => ({
       ...prev,
@@ -190,23 +187,21 @@ export default function BlogDetail({ route }) {
     fetchReplies(commentId, page);
   };
 
-  // Function to toggle reply input for a comment
   const toggleReplyInput = (commentId, replyId = null) => {
     if (replyId) {
-      // Trả lời cho một reply
+
       if (replyingToReply === replyId) {
-        // Cancel reply to reply
+
         setReplyingToReply(null);
         setReplyParentId(null);
         setNewReply("");
       } else {
-        // Start reply to reply
+
         setReplyingToReply(replyId);
         setReplyParentId(commentId);
         setReplyingToComment(null);
         setNewReply("");
 
-        // If replies haven't been loaded yet, load them
         if (!replies[commentId]) {
           setReplies((prev) => ({
             ...prev,
@@ -222,7 +217,6 @@ export default function BlogDetail({ route }) {
         }
       }
     } else {
-      // Trả lời cho comment gốc
       if (replyingToComment === commentId) {
         setReplyingToComment(null);
         setNewReply("");
@@ -232,7 +226,6 @@ export default function BlogDetail({ route }) {
         setReplyParentId(null);
         setNewReply("");
 
-        // If replies haven't been loaded yet, load them
         if (!replies[commentId]) {
           setReplies((prev) => ({
             ...prev,
@@ -250,9 +243,7 @@ export default function BlogDetail({ route }) {
     }
   };
 
-  // Function to submit reply
   const handleSubmitReply = async () => {
-    // Kiểm tra xem đang trả lời comment hay reply
     const commentId = replyingToComment || replyParentId;
 
     if (!commentId || !newReply.trim()) {
@@ -269,11 +260,7 @@ export default function BlogDetail({ route }) {
         navigation.navigate("Login");
         return;
       }
-
-      // Tạo payload cho API
       let replyContent = newReply.trim();
-
-      // Nếu đang trả lời một reply, thêm thẻ @username
       if (replyingToReply) {
         const parentReply = replies[replyParentId]?.data.find(
           (r) => r.commentId === replyingToReply
@@ -294,7 +281,6 @@ export default function BlogDetail({ route }) {
 
       if (!response.error) {
         setNewReply("");
-        // Refresh replies for this comment
         fetchReplies(commentId);
         Alert.alert("Thành công", "Đã gửi trả lời thành công");
         setReplyingToComment(null);
@@ -310,7 +296,6 @@ export default function BlogDetail({ route }) {
     }
   };
 
-  // Fetch user profile for avatar display
   const fetchUserProfile = async () => {
     try {
       const data = await getProfile();
