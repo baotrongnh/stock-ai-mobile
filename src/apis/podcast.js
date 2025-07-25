@@ -43,11 +43,7 @@ export const getFeaturedPodcasts = async (page = 1, pageSize = 5) => {
   }
 };
 
-/**
- * Lấy podcast theo ID
- * @param {number} id - ID của podcast
- * @returns {Promise<Object>}
- */
+
 export const getPodcastById = async (id) => {
   try {
     return await axiosClient.get(`/public/podcasts/${id}`);
@@ -57,11 +53,6 @@ export const getPodcastById = async (id) => {
   }
 };
 
-/**
- * Tăng số lượt nghe của podcast
- * @param {number} id - ID của podcast
- * @returns {Promise<Object>}
- */
 export const incrementPlayCount = async (id) => {
   try {
     return await axiosClient.post(`/public/podcasts/${id}/play`);
@@ -106,11 +97,6 @@ export const formatFileSize = (bytes) => {
   return `${size.toFixed(1)} ${units[unitIndex]}`;
 };
 
-/**
- * Format thời gian tương đối (ví dụ: "3 giờ trước", "2 ngày trước")
- * @param {string} dateString - Chuỗi datetime (ISO)
- * @returns {string} - Định dạng thời gian tương đối
- */
 export const formatRelativeTime = (dateString) => {
   if (!dateString) return "Unknown date";
 

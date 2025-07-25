@@ -8,6 +8,7 @@ import {
   Image,
   TouchableOpacity,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { getAllBlogs, getLatestBlogs, getTrendingBlogs } from "../apis/blog";
@@ -15,6 +16,7 @@ import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 
 export default function Blog() {
   const navigation = useNavigation();
+  const [allBlogs, setAllBlogs] = useState([]);
   const [latestBlogs, setLatestBlogs] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
@@ -23,6 +25,7 @@ export default function Blog() {
   const [filteredBlogs, setFilteredBlogs] = useState([]);
   const [showFilter, setShowFilter] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     stockCode: "",
@@ -31,22 +34,38 @@ export default function Blog() {
     session: "",
   });
 
+  const paginateBlogs = useCallback((blogs, currentPage, size) => {
+    const startIndex = (currentPage - 1) * size;
+    const endIndex = startIndex + size;
+    return blogs.slice(startIndex, endIndex);
+  }, []);
   const fetchLatestBlogs = useCallback(
     async (pageNum = 1) => {
+      setIsLoadingPage(true);
       try {
-        const data = await getLatestBlogs(pageNum, pageSize);
-        setLatestBlogs(data.data.data);
-        if (data.data.pagination) {
-          setPage(data.data.pagination.page);
-          setTotalPages(data.data.pagination.totalPages);
-        }
+        const data = await getLatestBlogs(1, 1000);
+        const allBlogsData = data.data.data || [];
+
+        setAllBlogs(allBlogsData);
+
+        const total = Math.ceil(allBlogsData.length / pageSize);
+        setTotalPages(total > 0 ? total : 1);
+
+        setPage(pageNum);
+
+        const paginatedBlogs = paginateBlogs(allBlogsData, pageNum, pageSize);
+        setLatestBlogs(paginatedBlogs);
       } catch (error) {
+        console.error("Error fetching blogs:", error);
+        setAllBlogs([]);
         setLatestBlogs([]);
         setPage(1);
         setTotalPages(1);
+      } finally {
+        setIsLoadingPage(false);
       }
     },
-    [pageSize]
+    [pageSize, paginateBlogs]
   );
 
   const fetchTrendingBlogs = useCallback(async () => {
@@ -62,7 +81,7 @@ export default function Blog() {
   const applyFilters = (autoApply = false) => {
     setIsFiltering(true);
 
-    let filtered = [...latestBlogs];
+    let filtered = [...allBlogs];
 
     if (searchTerm.trim()) {
       filtered = filtered.filter((blog) =>
@@ -78,13 +97,11 @@ export default function Blog() {
       );
     }
 
-
     if (filters.sentiment) {
       filtered = filtered.filter(
         (blog) => blog.sentiment === filters.sentiment
       );
     }
-
 
     if (filters.level) {
       filtered = filtered.filter((blog) => blog.level === filters.level);
@@ -102,6 +119,7 @@ export default function Blog() {
     }
 
     setFilteredBlogs(filtered);
+    setPage(1);
     setIsFiltering(false);
 
     // Only close filter panel if it's manual apply (not auto-apply)
@@ -115,9 +133,23 @@ export default function Blog() {
     setFilters({ stockCode: "", sentiment: "", level: "", session: "" });
     setFilteredBlogs([]);
     setIsFiltering(false);
+    setPage(1);
+
+    const paginatedBlogs = paginateBlogs(allBlogs, 1, pageSize);
+    setLatestBlogs(paginatedBlogs);
   };
 
-  // Determine which blogs to display
+  useEffect(() => {
+    if (
+      searchTerm.trim() ||
+      Object.values(filters).some((value) => value !== "")
+    ) {
+      // Không làm gì vì filteredBlogs đã được tính
+    } else {
+      const paginatedBlogs = paginateBlogs(allBlogs, page, pageSize);
+      setLatestBlogs(paginatedBlogs);
+    }
+  }, [page, allBlogs, pageSize, paginateBlogs]);
   const displayBlogs =
     isFiltering ||
     searchTerm.trim() ||
@@ -134,52 +166,60 @@ export default function Blog() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchLatestBlogs(page);
+      fetchLatestBlogs(1);
       fetchTrendingBlogs();
-
 
       setSearchTerm("");
       setFilters({ stockCode: "", sentiment: "", level: "", session: "" });
       setFilteredBlogs([]);
       setIsFiltering(false);
       setShowFilter(false);
-    }, [page, fetchLatestBlogs, fetchTrendingBlogs])
+    }, [fetchLatestBlogs, fetchTrendingBlogs])
   );
 
-  // Auto-apply search when search term changes
   useEffect(() => {
     if (
       searchTerm.trim() ||
       Object.values(filters).some((value) => value !== "")
     ) {
-      applyFilters(true); // Pass true for auto-apply
+      applyFilters(true);
     } else {
       setFilteredBlogs([]);
       setIsFiltering(false);
     }
   }, [searchTerm, filters, latestBlogs]);
 
-  // Hàm chuyển trang
   const handlePrevPage = useCallback(() => {
     if (page > 1) {
+      setIsLoadingPage(true);
       const newPage = page - 1;
       setPage(newPage);
-      fetchLatestBlogs(newPage);
+
+      setTimeout(() => {
+        const paginatedBlogs = paginateBlogs(allBlogs, newPage, pageSize);
+        setLatestBlogs(paginatedBlogs);
+        setIsLoadingPage(false);
+      }, 300);
     }
-  }, [page, fetchLatestBlogs]);
+  }, [page, allBlogs, pageSize, paginateBlogs]);
 
   const handleNextPage = useCallback(() => {
     if (page < totalPages) {
+      setIsLoadingPage(true);
       const newPage = page + 1;
       setPage(newPage);
-      fetchLatestBlogs(newPage);
+
+      setTimeout(() => {
+        const paginatedBlogs = paginateBlogs(allBlogs, newPage, pageSize);
+        setLatestBlogs(paginatedBlogs);
+        setIsLoadingPage(false);
+      }, 300);
     }
-  }, [page, totalPages, fetchLatestBlogs]);
+  }, [page, totalPages, allBlogs, pageSize, paginateBlogs]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <ScrollView style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.titleContainer}>
@@ -227,10 +267,8 @@ export default function Blog() {
           </View>
         </View>
 
-        {/* Filter Panel */}
         {showFilter && (
           <View style={styles.filterPanel}>
-            {/* Stock Code Input */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Mã cổ phiếu</Text>
               <TextInput
@@ -243,7 +281,6 @@ export default function Blog() {
               />
             </View>
 
-            {/* Sentiment Filter */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Sentiment</Text>
               <View style={styles.filterOptions}>
@@ -277,7 +314,6 @@ export default function Blog() {
               </View>
             </View>
 
-            {/* Level Filter */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Level</Text>
               <View style={styles.filterOptions}>
@@ -309,7 +345,6 @@ export default function Blog() {
               </View>
             </View>
 
-            {/* Session Filter */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Session</Text>
               <View style={styles.filterOptions}>
@@ -341,7 +376,6 @@ export default function Blog() {
               </View>
             </View>
 
-            {/* Filter Actions */}
             <View style={styles.filterActions}>
               <TouchableOpacity
                 style={styles.clearBtn}
@@ -359,7 +393,6 @@ export default function Blog() {
           </View>
         )}
 
-        {/* Actions Row */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.createBtn}
@@ -369,7 +402,6 @@ export default function Blog() {
           </TouchableOpacity>
         </View>
 
-        {/* Trending Section */}
         <View>
           <Text style={styles.sectionTitle}>🔥 Trending Now</Text>
           <ScrollView
@@ -473,15 +505,31 @@ export default function Blog() {
           </ScrollView>
         </View>
 
-        {/* Latest Articles Section */}
         <View>
-          <Text style={styles.sectionTitle}>
-            📚 Latest Articles
-            {searchTerm.trim() && ` - "${searchTerm}"`}
-            {(searchTerm.trim() ||
-              Object.values(filters).some((value) => value !== "")) &&
-              ` (${displayBlogs.length} results)`}
-          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginHorizontal: 16,
+              marginTop: 16,
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "bold", color: "#222" }}>
+              📚 Latest Articles
+              {searchTerm.trim() && ` - "${searchTerm}"`}
+              {(searchTerm.trim() ||
+                Object.values(filters).some((value) => value !== "")) &&
+                ` (${displayBlogs.length} results)`}
+            </Text>
+            {isLoadingPage && (
+              <ActivityIndicator
+                size="small"
+                color="#f59e42"
+                style={{ marginLeft: 8 }}
+              />
+            )}
+          </View>
           {displayBlogs.length === 0 &&
           (searchTerm.trim() ||
             Object.values(filters).some((value) => value !== "")) ? (
@@ -616,7 +664,6 @@ export default function Blog() {
                   </View>
                 </TouchableOpacity>
               ))}
-              {/* Pagination Controls */}
               <View
                 style={{
                   flexDirection: "row",
@@ -630,10 +677,19 @@ export default function Blog() {
                     padding: 8,
                     backgroundColor: page > 1 ? "#ef4444" : "#f3f4f6",
                     borderRadius: 6,
+                    flexDirection: "row",
+                    alignItems: "center",
                   }}
-                  disabled={page <= 1}
+                  disabled={page <= 1 || isLoadingPage}
                   onPress={handlePrevPage}
                 >
+                  {isLoadingPage && page > 1 ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#fff"
+                      style={{ marginRight: 5 }}
+                    />
+                  ) : null}
                   <Text style={{ color: page > 1 ? "#fff" : "#888" }}>
                     Previous
                   </Text>
@@ -652,20 +708,28 @@ export default function Blog() {
                     padding: 8,
                     backgroundColor: page < totalPages ? "#ef4444" : "#f3f4f6",
                     borderRadius: 6,
+                    flexDirection: "row",
+                    alignItems: "center",
                   }}
-                  disabled={page >= totalPages}
+                  disabled={page >= totalPages || isLoadingPage}
                   onPress={handleNextPage}
                 >
                   <Text style={{ color: page < totalPages ? "#fff" : "#888" }}>
                     Next
                   </Text>
+                  {isLoadingPage && page < totalPages ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#fff"
+                      style={{ marginLeft: 5 }}
+                    />
+                  ) : null}
                 </TouchableOpacity>
               </View>
             </>
           )}
         </View>
 
-        {/* Bottom Spacing */}
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -850,7 +914,6 @@ const styles = StyleSheet.create({
     borderColor: "#ef4444",
   },
 
-  // Filter Panel Styles
   filterPanel: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
