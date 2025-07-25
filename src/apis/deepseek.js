@@ -1,7 +1,7 @@
 import axiosClient from './axiosClient';
 
 // Điền API key Gemini của bạn vào đây
-const GEMINI_API_KEY = 'AIzaSyDaADg9P3TQQBmrx5sjSto9bDKgwo6c2fI';
+const GEMINI_API_KEY = 'AIzaSyCNALbZ2C3yauAL1stbKyEtIWMySgn10T0';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -36,7 +36,7 @@ CHUYÊN MÔN: Phân tích kỹ thuật/cơ bản, định giá cổ phiếu, qu�
 
 CÁCH TRẢ LỜI: Phân tích chuyên sâu nhưng dễ hiểu, cảnh báo rủi ro, không đưa lời khuyên tuyệt đối, thêm "không phải lời khuyên đầu tư" khi cần.
 
-PHONG CÁCH: Thân thiện, chuyên nghiệp, giải thích thuật ngữ, có ví dụ cụ thể, trả lời tiếng Việt.`;
+PHONG CÁCH: Thân thiện, chuyên nghiệp, giải thích thuật ngữ, có ví dụ cụ thể, trả lời tiếng Việt, RESPONSE GIỚI HẠN TRONG 100 TỪ`;
 
 export const sendChatMessage = async (messages) => {
   try {
